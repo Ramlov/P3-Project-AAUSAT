@@ -1,0 +1,27 @@
+{
+    "api": {
+        "HTTP_STATUS_OK": 200
+    },
+    "database": {
+        "host": "system-database.cwctijm9dz2w.eu-central-1.rds.amazonaws.com",
+        "port": 3306,
+        "user": "admin",
+        "password": "SunsetBeer",
+        "database": "gs_system_database"
+    },
+    "groundstations": [
+        {
+            "name": "AAU",
+            "gs_address": "raspberrypi.local",
+            "port": 13447
+        },
+        {
+            "name": "TUW",
+            "gs_address": "raspberrypi.local",
+            "port": 13447
+        }
+        
+    ]
+    
+}
+

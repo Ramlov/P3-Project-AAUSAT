@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>AAU SAT Mission Control - Manual Control</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles/style.css') }}">
+    <link rel="icon" href="{{ url_for('favicon') }}" type="image/x-icon">
+
+    <style>
+        .mission-control {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1, h2 {
+            text-align: center;
+            color: #333;
+        }
+
+        .control-group_azel {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+        }
+
+        input {
+            width: calc(100% - 10px);
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            background-color: #3498db;
+            color: #fff;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        .keypad {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+        }
+
+        .key {
+            background-color: #2ecc71;
+            color: #fff;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+        }
+
+        .key:hover {
+            background-color: #27ae60;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-gap: 20px; /* Adjust the gap as needed */
+        }
+
+        .canvas {
+            border: 1px solid #000;
+        }
+
+    </style>
+</head>
+
+<body>
+    <header>
+        <nav>
+            <div class="logo"><a href="/">AAU SAT Mission Control</a></div>
+            <ul class="nav-links">
+                <li><a href="/">Home</a></li>
+                <li><a href="/webcam">Webcam stream</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <div class="mission-control">
+        <h1>Manual Control</h1>
+
+        <div class="control-group_azel">
+            <label for="azimuth">Azimuth (degrees):</label>
+            <input type="number" id="az" name="azimuth" placeholder="Enter Azimuth" min="0" max="360">
+
+            <label for="elevation">Elevation (degrees):</label>
+            <input type="number" id="el" name="elevation" placeholder="Enter Elevation" min="0" max="180">
+
+            <button id="submit-btn" onclick="submitValues()">Submit</button>
+        </div>
+
+        <div class="keypad">
+            <button class="key" onclick="moveDirection('MU')">Up</button>
+            <button class="key" onclick="moveDirection('ML')">Left</button>
+            <button class="key" onclick="moveDirection('MR')">Right</button>
+            <button class="key" onclick="moveDirection('MD')">Down</button>
+            <button class="key" onclick="stopAction('azimuth')">Stop Azimuth</button>
+            <button class="key" onclick="stopAction('elevation')">Stop Elevation</button>
+            <button class="key" onclick="moveDirection('AC')">Auto Calibrate</button>
+        </div>
+        <br>
+        <button id="close-btn" onclick="closeAction()">CLOSE CONNECTION</button>
+
+
+    <div class="antenna-position">
+        <h1>Antenna Orientation</h1>
+    
+        <div class="container">
+            <div class="canvas-container">
+                <p id="azimuth">Azimuth: {{ azimuth }}</p>
+                <canvas id="azimuthCanvas" width="200" height="200"></canvas>
+            </div>
+            
+            <div class="canvas-container">
+                <p id="elevation">Elevation: {{ elevation }}</p>
+                <canvas id="elevationCanvas" width="200" height="200"></canvas>
+            </div>
+            <p>Values are update once every 5 seconds!</p>
+        </div>
+
+    </div>
+</div>
+
+    <footer>
+        <p>© Copyright <a href="https://github.com/Ramlov/P3-Project">AAU COMTEK GRP 351</a></p>
+    </footer>
+
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <script>
+        function submitValues() {
+            const azimuthValue = document.getElementById("az").value;
+            const elevationValue = document.getElementById("el").value;
+    
+            if (validateAzimuth(azimuthValue) && validateElevation(elevationValue)) {
+                $.ajax({
+                    type: "POST",
+                    url: "/manual",
+                    contentType: "application/json;charset=UTF-8",
+                    data: JSON.stringify({ az: azimuthValue, el: elevationValue }),
+                    success: function(response) {
+                        console.log("Data submitted successfully to Flask backend");
+                        updateResponse(response);
+                    },
+                    error: function(error) {
+                        console.error("Error submitting data to Flask backend:", error);
+                    }
+                });
+            } else {
+                showError("Invalid azimuth or elevation values. Please check the range. Azimuth should be 0-450 and elevation should be 0-180");
+            }
+        }
+    
+        function updateResponse(response) {
+            $("#response-container").text("Response: " + response);
+        }
+
+        function moveDirection(direction) {
+            $.ajax({
+                type: "POST",
+                url: "/manual",
+                contentType: "application/json;charset=UTF-8",
+                data: JSON.stringify({ direction: direction }),
+                success: function(response) {
+                    console.log(`Direction ${direction} sent successfully to Flask backend`);
+                },
+                error: function(error) {
+                    console.error("Error sending direction to Flask backend:", error);
+                }
+            });
+        }
+
+        function stopAction(action) {
+            let stopValue;
+            if (action === 'azimuth') {
+                stopValue = 'SA'; // Stop Azimuth
+            } else if (action === 'elevation') {
+                stopValue = 'SE'; // Stop Elevation
+            }
+
+            $.ajax({
+                type: "POST",
+                url: "/manual",
+                contentType: "application/json;charset=UTF-8",
+                data: JSON.stringify({ stop: stopValue }),
+                success: function(response) {
+                    console.log(`${action} stopped successfully`);
+                },
+                error: function(error) {
+                    console.error(`Error stopping ${action}:`, error);
+                }
+            });
+        }
+
+        function validateAzimuth(value) {
+            return value >= 0 && value <= 450;
+        }
+
+        function validateElevation(value) {
+            return value >= 0 && value <= 180;
+        }
+
+        function showError(message) {
+            alert(message);
+        }
+
+                // Function to update orientation
+                function updateOrientation() {
+            $.get('/get_orientation', function(data) {
+                $('#azimuth').text('Azimuth: ' + data.azimuth);
+                $('#elevation').text('Elevation: ' + data.elevation);
+
+                // Call function to update arrows
+                updateArrows(data.azimuth, data.elevation);
+            });
+        }
+
+        function updateArrows(azimuth, elevation) {
+            // Get canvas elements
+            var azimuthCanvas = document.getElementById('azimuthCanvas');
+            var elevationCanvas = document.getElementById('elevationCanvas');
+
+            // Get 2D rendering context
+            var azimuthCtx = azimuthCanvas.getContext('2d');
+            var elevationCtx = elevationCanvas.getContext('2d');
+
+            // Clear canvases
+            azimuthCtx.clearRect(0, 0, azimuthCanvas.width, azimuthCanvas.height);
+            elevationCtx.clearRect(0, 0, elevationCanvas.width, elevationCanvas.height);
+
+            // Update azimuth arrow
+            AZangle = (azimuth * Math.PI / 180) - (Math.PI / 2)   // Radians. Rotate clockwise starting at North
+            drawArrow(azimuthCtx, azimuthCanvas.width / 2, azimuthCanvas.height / 2, AZangle, 50, 'red');
+            drawText(azimuthCtx, azimuthCanvas.width / 2 - 15, azimuthCanvas.height / 2 + 60, azimuth);
+
+            // Draw circle on the AZ canvas
+            AZdrawSemicircle(azimuthCtx, azimuthCanvas.width / 2, azimuthCanvas.height / 2, 50, AZangle);
+
+            // Update elevation arrow
+            ELangle = (-elevation * Math.PI / 180)
+            drawArrow(elevationCtx, elevationCanvas.width / 2, elevationCanvas.height / 2, ELangle, 50, 'blue');
+            drawText(elevationCtx, elevationCanvas.width / 2 - 15, elevationCanvas.height / 2 + 60, elevation);
+
+            // Draw circle on the AZ canvas
+            ELdrawSemicircle(elevationCtx, elevationCanvas.width / 2, elevationCanvas.height / 2, 50, ELangle);
+        }
+
+        function AZdrawSemicircle(ctx, x, y, radius, angle) {
+            ctx.beginPath();
+            ctx.arc(x, y, radius, -Math.PI / 2, angle, false);
+            ctx.strokeStyle = 'green';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        function ELdrawSemicircle(ctx, x, y, radius, angle) {
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, angle, true);
+            ctx.strokeStyle = 'green';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        function drawArrow(ctx, x, y, angle, length, color) {
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + length * Math.cos(angle), y + length * Math.sin(angle));
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        function drawText(ctx, x, y, text) {
+            ctx.font = '14px Arial';
+            ctx.fillStyle = 'black';
+            ctx.fillText(text, x, y);
+        }
+
+        // Update values and arrows every 2 seconds
+        setInterval(updateOrientation, 2000);
+
+
+    
+        function closeAction() {
+        $.ajax({
+            type: "POST",
+            url: "/manual",
+            contentType: "application/json;charset=UTF-8",
+            data: JSON.stringify({ close: "STOP" }),
+            success: function(response) {
+                console.log("CLOSE action sent successfully to Flask backend");
+                window.location.href = "/";
+            },
+            error: function(error) {
+                console.error("Error sending CLOSE action to Flask backend:", error);
+            }
+        });
+    }
+
+    </script>
+
+</body>
+</html>

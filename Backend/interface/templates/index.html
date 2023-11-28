@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>AAU SAT Mission Control</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles/style.css') }}">
+    <link rel="icon" href="{{ url_for('favicon') }}" type="image/x-icon">
+
+    <style>
+        /* Add your styles here */
+        .loading-container {
+            display: none;
+            text-align: center;
+        }
+
+        .loading-spinner {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <nav>
+            <div class="logo"><a href="/">AAU SAT Mission Control</a></div>
+            <ul class="nav-links">
+                <li><a href="/">Home</a></li>
+                <li><a href="/webcam">Webcam stream</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <div class="mission-control">
+        <h1>Mission Control</h1>
+        <form method="POST" action="/" onsubmit="showLoading()">
+            <div class="control-options">
+                <label for="tracking-mode">Select Tracking Mode:</label>
+                <select id="tracking-mode" name="tracking-mode">
+                    <option value="EZCOM2">EZCOM2</option>
+                    <option value="MANUAL">Manual</option>
+                    <option value="AUTOTRACKING">Autotracking</option>
+                </select>
+            </div>
+
+            <div id="autotracking-controls" class="control-group">
+                <label for="satellite-id">Satellite ID:</label>
+                <select id="satellite-id" name="satellite-id">
+                    <option value="32788">AAUSAT-2</option>
+                    <option value="41460">AAUSAT 4</option>
+                </select>
+            
+                <label for="priority-auto">Priority:</label>
+                <select id="priority-auto" name="priority-auto">
+                    <option value="1">Urgent</option>
+                    <option value="2">High</option>
+                    <option value="3" selected>Normal</option>
+                    <option value="4">Low</option>
+                    <option value="5">Very Low</option>
+                </select>
+            </div>
+            
+
+            <div id="manual-controls" class="control-group">
+                <label for="groundstation-id">Ground Station ID:</label>
+                <select id="groundstation-id" name="groundstation-id">
+                    <option value="1">AAU GS</option>
+                    <option value="2">TUW GS</option>
+                </select>
+
+                <label for="priority-manual">Priority:</label>
+                <select id="priority-manual" name="priority-manual">
+                    <option value="1">Urgent</option>
+                    <option value="2">High</option>
+                    <option value="3" selected>Normal</option>
+                    <option value="4">Low</option>
+                    <option value="5">Very Low</option>
+                </select>
+            </div>
+
+            <div class="loading-container" id="loading-container">
+                <div class="loading-spinner"></div>
+                <p>Waiting on queue...</p>
+                <button id="stop-queue" type="button" onclick="stopQueue()">Stop Queue</button>
+            </div>
+
+            <button id="start-tracking" type="submit">Start Tracking</button>
+        </form>
+     
+    </div>
+
+    <footer>
+        <p>© Copyright <a href="https://github.com/Ramlov/P3-Project">AAU COMTEK GRP 351</a></p>
+    </footer>
+
+    <script src="/static/script.js"></script>
+
+    <script>
+        function showLoading() {
+            document.getElementById("loading-container").style.display = "block";
+        }
+        function stopQueue() {
+            // Make a POST request to stop the queue
+            $.ajax({
+                type: "POST",
+                url: "/stop_queue",
+                contentType: "application/json;charset=UTF-8",
+                data: JSON.stringify({ action: "stop" }),
+                success: function(response) {
+                    console.log("Queue stopped successfully");
+                },
+                error: function(error) {
+                    console.error("Error stopping the queue:", error);
+                }
+            });
+        }
+    </script>
+</body>
+</html>
