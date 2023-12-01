@@ -11,6 +11,16 @@
     </head>
 
     <body>
+      <style>
+.stream {
+  text-align: center;
+}
+
+.stream img {
+  max-width: 100%;
+  height: auto;
+}
+      </style>
         <header>
           <nav>
             <div class="logo"><a href="/">AAU SAT Mission control</a></div>
@@ -20,7 +30,10 @@
             </ul>
           </nav>
         </header>
-        <img src="{{ url_for('video_feed') }}">
+        <div class="stream">
+          <img src="{{ url_for('video_feed') }}">
+        </div>
+
         <footer>
           <p>©Copyright <a href="https://github.com/Ramlov/P3-Project">AAU COMTEK GRP 351</a></p>
         </footer>
