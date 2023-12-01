@@ -27,12 +27,6 @@ AC                Automaticaly Calibrate min. and max. voltage values read from 
 PP                Print Position of antenna in AZ and EL
 */
 
-/*
-========== TO-DO ==========
-  - testing of entire GS
-  - Fix ADC's first readings are too high - loop 20 times for reads or somethinglike that?
-  
-*/
 
 #include <WiFi.h>
 #include <HTTPClient.h>
@@ -46,8 +40,8 @@ String software_version = String("1.3.1");
 // ========== variables and constants - AUTOTRACK (SGP4) related ==========
 
 // WiFi related
-const char* ssid = "Wroom";      // Replace with your Wi-Fi credentials
-const char* password = "Dinmor1234";
+const char* ssid = "EtWifi";      // Replace with your Wi-Fi credentials
+const char* password = "EnKode1234";
 
 // TLE API related
 const char* baseURL = "https://tle.ivanstanojevic.me/api/tle/";
@@ -108,7 +102,7 @@ float ElVoltRange = ElMaxVolt - ElMinVolt;
 float threshold = 1.0;
 //maximum angle in pos. and neg. direction where link budget is still secured. If antenna angle > abs(sat angle +- max_angle_for_radio)
 //then shut of TX or RX until within acceptable range
-float max_angle_for_radio = 13.7;
+float max_angle_for_radio = 13.9;
 
 String OK_msg = String("OK");
 String WAIT_msg = String("WAIT");
