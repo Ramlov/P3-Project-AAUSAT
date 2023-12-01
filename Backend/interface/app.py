@@ -1,21 +1,27 @@
-from flask import Flask, render_template, request, redirect, send_from_directory, jsonify, url_for
+from flask import Flask, render_template, request, redirect, send_from_directory, jsonify, url_for, Response
 from helper_class import helper
 import os
 from time import sleep
-#import backend_rpi_tunnel as brt
 import ast
 import threading
-#import satnogsApi as satApi
-
-# for testing - delete later
-import random
-import re
+import datetime, time
+import imutils
+import cv2
 
 helpers = helper()
 
 app = Flask(__name__)
 satellite_id = 0
 gs_id = 0
+
+
+outputFrame = None
+lock = threading.Lock()
+
+
+source = "rtsp://studuser:Studentspace@roof-aausat.space.aau.dk:554/h264Preview_01_main"
+cap = cv2.VideoCapture(source, cv2.CAP_FFMPEG)
+sleep(1)
 #sat_list = satApi.get_satellites_list()
 #satellite_name = [sat_list]
 #print(satellite_name)
@@ -70,6 +76,40 @@ def home():
             return redirect(url_for('autotrack'))
     return render_template('index.html')
 
+def stream(frameCount):
+    global outputFrame, lock
+    if cap.isOpened():
+        while True:
+            ret_val, frame = cap.read()
+            if frame.shape:
+                frame = cv2.resize(frame, (640, 360))
+                with lock:
+                    outputFrame = frame.copy()
+            else:
+                continue
+    else:
+        print('Camera open failed')
+
+def generate():
+    global outputFrame, lock
+ 
+    while True:
+        with lock:
+            if outputFrame is None:
+                continue
+            (flag, encodedImage) = cv2.imencode(".jpg", outputFrame)
+            if not flag:
+                continue
+        yield(b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + 
+            bytearray(encodedImage) + b'\r\n')
+
+@app.route("/video_feed")
+def video_feed():
+    return Response(generate(),
+        mimetype="multipart/x-mixed-replace; boundary=frame")
+
+
+
 @app.route('/webcam', methods=['GET', 'POST'])
 def webcam():
     return render_template('webcam/webcam.html')
@@ -110,8 +150,6 @@ def get_orientation():
     response = helpers.send_commands(command=commanden)
     try:
         pattern = re.compile(r"'azimuth': (?P<azimuth>[\d.]+), 'elevation': (?P<elevation>[\d.]+)")
-
-        # Find the matched pattern in the response string
         match = pattern.search(response[0])
 
         if match:
@@ -143,7 +181,12 @@ def autotracking_info():
 if __name__ == '__main__':
     #from waitress import serve
     #serve(app, host="0.0.0.0", port=8080)
+    t = threading.Thread(target=stream, args=(40,))
+    t.daemon = True
+    t.start()
     try: 
-        app.run(host='0.0.0.0', port=50005, debug=True)
+        app.run(host='0.0.0.0', port=50005, debug=True, use_reloader=False)
     finally:
         helpers.close_connection()
+        cap.release()
+        cv2.destroyAllWindows()

@@ -20,23 +20,7 @@
             </ul>
           </nav>
         </header>
-        
-        <video id="video" autoplay></video>
-        <script>
-            const video = document.getElementById('video');
-    
-            // Use navigator.mediaDevices to access the webcam
-            navigator.mediaDevices.getUserMedia({ video: true })
-                .then(stream => {
-                    video.srcObject = stream;
-                })
-                .catch(error => {
-                    console.error('Error accessing webcam:', error);
-                });
-        </script>
-
-
-
+        <img src="{{ url_for('video_feed') }}">
         <footer>
           <p>©Copyright <a href="https://github.com/Ramlov/P3-Project">AAU COMTEK GRP 351</a></p>
         </footer>
