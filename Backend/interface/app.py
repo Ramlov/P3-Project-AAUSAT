@@ -3,6 +3,7 @@ from helper_class import helper
 import os
 from time import sleep
 import ast
+import re
 import threading
 import datetime, time
 import imutils
@@ -21,6 +22,7 @@ lock = threading.Lock()
 
 source = "rtsp://studuser:Studentspace@roof-aausat.space.aau.dk:554/h264Preview_01_main"
 cap = cv2.VideoCapture(source, cv2.CAP_FFMPEG)
+cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 sleep(1)
 #sat_list = satApi.get_satellites_list()
 #satellite_name = [sat_list]
@@ -50,7 +52,7 @@ def home():
             priority = request.form.get('priority-manual')
             data['groundstation_id'] = groundstation_id
             data['priority'] = priority
-            helpers.data_tunnel(data)
+            #helpers.data_tunnel(data)
             helpers.open_tunnel(gs_id)
             #print(data)
             new_dict = {"process": "START"}
@@ -148,6 +150,7 @@ import json
 def get_orientation():
     commanden = {'key': "PP"}
     response = helpers.send_commands(command=commanden)
+    print(type(response))
     try:
         pattern = re.compile(r"'azimuth': (?P<azimuth>[\d.]+), 'elevation': (?P<elevation>[\d.]+)")
         match = pattern.search(response[0])
@@ -159,7 +162,8 @@ def get_orientation():
         else:
             print("No matching pattern found in the response.")
         return jsonify({'azimuth': azimuth, 'elevation': elevation})
-    except:
+    except Exception as e:
+        print(e)
         response = None
         if response is None:
             azimuth = 0
