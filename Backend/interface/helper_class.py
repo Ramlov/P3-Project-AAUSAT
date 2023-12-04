@@ -138,7 +138,7 @@ class helper:
         lock_on = False
         
         while True:
-            sleep(7.4)
+            sleep(6)
             query = f"SELECT Dump FROM Dump_Table WHERE GS_ID = {gs_id} ORDER BY Log_ID DESC"
             self.db_cur.execute(query)
             response = self.db_cur.fetchone()
