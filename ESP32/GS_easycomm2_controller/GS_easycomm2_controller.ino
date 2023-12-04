@@ -363,7 +363,8 @@ void TrackSat () {
 
   // move antenna while it is not yet locked onto the target satellite
   while ((Az_lock_on == false) || (El_lock_on == false)) {
-
+    
+    delay(100);
     // use ADC library to read digital value from conversion
     int16_t AzDigital = ads.readADC_SingleEnded(AZ_ADC_PIN);
     delay(2);
@@ -380,22 +381,23 @@ void TrackSat () {
     // locate satellite relative to GS
     unixtime = getTime();
     sat.findsat(unixtime);
-    delay(10);
+    // delay(10);
 
     float AzDiff = AzAntenna - sat.satAz;
     float ElDiff;
     if (sat.satEl < 0) {
-      ElDiff = ElAntenna;   // make EL go to 0.0 degs.
       Serial.println("SATELLITE-BELOW-HORIZON");
       delay(5000);    // wait 5 seconds and break out of loop.
+      SA();
+      SE();
       break;
     }
     else {
       ElDiff = ElAntenna - sat.satEl;
     }
-    // Serial.println(String("sat.satAZ: ") + String(sat.satAz));
+    // Serial.print(String("[sat.satAZ: ") + String(sat.satAz) + String(". AntennaAZ: ") + String(AzAntenna) + String("]    "));
     // Serial.println(String("AzDiff: ") + String(AzDiff));
-    // Serial.println(String("sat.satEl: ") + String(sat.satEl));
+    // Serial.println(String("[sat.satEl: ") + String(sat.satEl) + String(". AntennaEL: ") + String(ElAntenna) + String("]"));
     // Serial.println(String("ElDiff: ") + String(ElDiff));
     //check if antenna is outside of its maximum range according to link budget. If so, tell RPI that it should pause its TX or RX. 
     if (LOS && (abs(AzDiff) > max_angle_for_radio || abs(ElDiff) > max_angle_for_radio)) {
