@@ -138,31 +138,32 @@ class helper:
         lock_on = False
         
         while True:
-                query = f"SELECT Dump FROM Dump_Table WHERE GS_ID = {gs_id} ORDER BY Log_ID DESC"
-                self.db_cur.execute(query)
-                response = self.db_cur.fetchone()
-                self.database.commit()
+            sleep(7.4)
+            query = f"SELECT Dump FROM Dump_Table WHERE GS_ID = {gs_id} ORDER BY Log_ID DESC"
+            self.db_cur.execute(query)
+            response = self.db_cur.fetchone()
+            self.database.commit()
 
-                print(response)
+            print(response)
 
-                if response:
-                    if response[0] == "OK - LOCK_ON: True": 
-                        print(f"[LOCK ON]: Currently tracking {satellite_id}")
-                        lock_on = True
+            if response:
+                if response[0] == "OK - LOCK_ON: True": 
+                    print(f"[LOCK ON]: Currently tracking {satellite_id}")
+                    lock_on = True
 
-                    elif response[0] == "SATELLITE-BELOW-HORIZON":
-                        if lock_on == True:
-                            print("Autotrack done")
-                            self.remove_task_from_db()
-                            return False
+                elif response[0] == "SATELLITE-BELOW-HORIZON":
+                    if lock_on == True:
+                        print("Autotrack done")
+                        self.remove_task_from_db()
+                        return False
 
-                    elif response[0] == "OK - LOCK_ON: False":
-                        print(f"[LOCK OFF]: Not tracking {satellite_id}")
-                        lock_on = True
+                elif response[0] == "OK - LOCK_ON: False":
+                    print(f"[LOCK OFF]: Not tracking {satellite_id}")
+                    lock_on = True
 
-                    else:
-                        time.sleep(1)
-                        print("Waiting for status response from Esp32")
+                else:
+                    time.sleep(1)
+                    print("Waiting for status response from Esp32")
 
 
 
