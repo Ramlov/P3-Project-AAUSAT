@@ -6,7 +6,6 @@ import ast
 import re
 import threading
 import datetime, time
-import imutils
 import cv2
 
 helpers = helper()
@@ -19,10 +18,11 @@ gs_id = 0
 outputFrame = None
 lock = threading.Lock()
 
-
-source = "rtsp://studuser:Studentspace@roof-aausat.space.aau.dk:554/h264Preview_01_main"
+source = "rtsp://studuser:Studentspace@localhost:5000/h264Preview_01_main"
+#source = "rtsp://studuser:Studentspace@roof-aausat.space.aau.dk:554/h264Preview_01_main"
 cap = cv2.VideoCapture(source, cv2.CAP_FFMPEG)
 cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
 sleep(1)
 #sat_list = satApi.get_satellites_list()
 #satellite_name = [sat_list]
@@ -78,23 +78,20 @@ def home():
             return redirect(url_for('autotrack'))
     return render_template('index.html')
 
-def stream(frameCount):
+def stream():
     global outputFrame, lock
-    if cap.isOpened():
-        while True:
-            ret_val, frame = cap.read()
-            if frame.shape:
-                frame = cv2.resize(frame, (640, 360))
-                with lock:
-                    outputFrame = frame.copy()
-            else:
-                continue
-    else:
-        print('Camera open failed')
+    while True:
+        frame = cap.read()
+        if frame.shape:
+            frame = cv2.resize(frame, (640, 360))
+            with lock:
+                outputFrame = frame.copy()
+        else:
+            continue
+
 
 def generate():
     global outputFrame, lock
- 
     while True:
         with lock:
             if outputFrame is None:
@@ -150,7 +147,7 @@ import json
 def get_orientation():
     commanden = {'key': "PP"}
     response = helpers.send_commands(command=commanden)
-    print(type(response))
+    #print(type(response))
     try:
         pattern = re.compile(r"'azimuth': (?P<azimuth>[\d.]+), 'elevation': (?P<elevation>[\d.]+)")
         match = pattern.search(response[0])
@@ -185,12 +182,12 @@ def autotracking_info():
 if __name__ == '__main__':
     #from waitress import serve
     #serve(app, host="0.0.0.0", port=8080)
-    t = threading.Thread(target=stream, args=(40,))
+    t = threading.Thread(target=stream, args=())
     t.daemon = True
     t.start()
     try: 
         app.run(host='0.0.0.0', port=50005, debug=True, use_reloader=False)
     finally:
         helpers.close_connection()
-        cap.release()
+        cap.stop()
         cv2.destroyAllWindows()
