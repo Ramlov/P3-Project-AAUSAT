@@ -28,7 +28,6 @@ PP                Print Position of antenna in AZ and EL
 */
 #include <ArduinoJson.h>
 #include <Sgp4.h>
-#include <time.h>
 #include <Adafruit_ADS1X15.h>
 
 String software_version = String("1.3.1");
@@ -364,7 +363,7 @@ void TrackSat () {
   // move antenna while it is not yet locked onto the target satellite
   while ((Az_lock_on == false) || (El_lock_on == false)) {
     
-    delay(100);
+    delay(200);
     // use ADC library to read digital value from conversion
     int16_t AzDigital = ads.readADC_SingleEnded(AZ_ADC_PIN);
     delay(2);
@@ -387,7 +386,8 @@ void TrackSat () {
     float ElDiff;
     if (sat.satEl < 0) {
       Serial.println("SATELLITE-BELOW-HORIZON");
-      delay(5000);    // wait 5 seconds and break out of loop.
+      AZ(String("AZ") + String(sat.satAz));
+      delay(2000);    // wait 5 seconds and break out of loop.
       SA();
       SE();
       break;
@@ -399,6 +399,7 @@ void TrackSat () {
     // Serial.println(String("AzDiff: ") + String(AzDiff));
     // Serial.println(String("[sat.satEl: ") + String(sat.satEl) + String(". AntennaEL: ") + String(ElAntenna) + String("]"));
     // Serial.println(String("ElDiff: ") + String(ElDiff));
+
     //check if antenna is outside of its maximum range according to link budget. If so, tell RPI that it should pause its TX or RX. 
     if (LOS && (abs(AzDiff) > max_angle_for_radio || abs(ElDiff) > max_angle_for_radio)) {
       LOS = false;
