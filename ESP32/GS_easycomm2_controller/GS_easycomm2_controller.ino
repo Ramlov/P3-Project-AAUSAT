@@ -26,31 +26,15 @@ VE                Request version
 AC                Automaticaly Calibrate min. and max. voltage values read from AZ and EL potentiometers on motors
 PP                Print Position of antenna in AZ and EL
 */
-
-/*
-========== TO-DO ==========
-  - testing of entire GS
-  - Fix ADC's first readings are too high - loop 20 times for reads or somethinglike that?
-  
-*/
-
-#include <WiFi.h>
-#include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <Sgp4.h>
-#include <time.h>
 #include <Adafruit_ADS1X15.h>
 
 String software_version = String("1.3.1");
 
 // ========== variables and constants - AUTOTRACK (SGP4) related ==========
 
-// WiFi related
-const char* ssid = "Wroom";      // Replace with your Wi-Fi credentials
-const char* password = "Dinmor1234";
-
-// TLE API related
-const char* baseURL = "https://tle.ivanstanojevic.me/api/tle/";
+// TLE related
 char satname[60];     // adjust size if not enough. Some satnames are longer than others
 char tle_line1[130];
 char tle_line2[130];
@@ -61,8 +45,6 @@ double GS_lat = 57.013913;                          //set site (GS) latitude[°]
 double GS_lon = 9.987546;                           //AAU values
 double GS_alt = 21; 
 
-// NTP (Network Time Protocol) server for getting epochtime
-const char* ntpServer = "pool.ntp.org";
 // Variable to save current epoch time / unixtime
 unsigned long unixtime;
 
@@ -108,7 +90,7 @@ float ElVoltRange = ElMaxVolt - ElMinVolt;
 float threshold = 1.0;
 //maximum angle in pos. and neg. direction where link budget is still secured. If antenna angle > abs(sat angle +- max_angle_for_radio)
 //then shut of TX or RX until within acceptable range
-float max_angle_for_radio = 13.7;
+float max_angle_for_radio = 13.9;
 
 String OK_msg = String("OK");
 String WAIT_msg = String("WAIT");
@@ -307,87 +289,52 @@ int EL(String command) {
 
 
 // ========== AUTOTRACK movement functions =========
-/*
-Function for connecting the ESP32 to Wi-Fi using specified credentials from the top of the file
-*/
-void conn_WiFi() {
-  // Connect to Wi-Fi
-  WiFi.begin(ssid, password);
-  Serial.print("Connecting to WiFi");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(2000);
-    Serial.print(".");
-  }
-  Serial.println("Connected to WiFi");
-}
-
 /* 
-Function for posting http GET request at TLE API for getting latest TLE data on satellite with ID = satID from RPI
+Function for getting latest TLE data on satellite with ID = satID from RPI
 */
 JsonObject fetchTLEData(int satID) {
-  String url = baseURL + String(satID);
-  HTTPClient http;
   JsonObject tleData;  // JsonObject to store TLE data
 
-  http.begin(url.c_str());
-
-  int httpCode = http.GET();
-
-  if (httpCode > 0) {
-    if (httpCode == HTTP_CODE_OK) {
-      String payload = http.getString();
-      // Serial.println("TLE Data:");
-      // Serial.println(payload);
-
-      // Parse the JSON data into the JsonObject
-      DynamicJsonDocument jsonDoc(1024); // Adjust the size as needed
-      DeserializationError error = deserializeJson(jsonDoc, payload);
-
-      if (!error) {
-        // Extract the "line1" and "line2" values
-        Serial.println("Extracting TLE data to Json object");
-        tleData = jsonDoc.as<JsonObject>();
-      } else {
-        Serial.println("JSON parsing error: " + String(error.c_str()));
-      }
-    } else {
-      Serial.println("Failed to fetch TLE data");
-    }
-  } else {
-    Serial.println("HTTP request failed");
+  Serial.println(String("RPI_TLE_") + String(satID));
+  while (!Serial.available()) {
+    // Wait for RPI TLE JSON object
   }
 
-  http.end();
+  String TLE_json = Serial.readStringUntil('\n');
+  TLE_json.trim();
+  Serial.println(TLE_json);
+  // Parse the JSON data into the JsonObject
+  DynamicJsonDocument jsonDoc(512); // Adjust the size as needed
+  DeserializationError error = deserializeJson(jsonDoc, TLE_json);
+
+  tleData = jsonDoc.as<JsonObject>();
   return tleData;
 }
 
 /*
-Function that gets current epoch time
+Function that gets current epoch time from RPI
 */
 unsigned long getTime() {
-  time_t now;
-  struct tm timeinfo;
-  if (!getLocalTime(&timeinfo)) {
-    //Serial.println("Failed to obtain time");
-    return(0);
+  Serial.println(String("RPI_TIME"));
+  while (!Serial.available()) {
+    // Wait for RPI unixtime response
   }
-  time(&now);
-  return now;
+  String unixtime = Serial.readStringUntil('\n');
+  unixtime.trim();
+  return unixtime.toInt();
 }
 
 /*
 Function for setting up all SGP4 and movement related dependencies for AUTOTRACK
 */
 void AT_setup(String satID_str) {
-  // Connect to Wi-Fi using ssid and password from the top of the file
-  conn_WiFi();
 
-  // Get TLE data using API call to https://tle.ivanstanojevic.me/api/tle/{satID}
+  // Get TLE data by asking RPI to use API call to https://tle.ivanstanojevic.me/api/tle/{satID}
   int satID = satID_str.toInt();  // converts to Int.
   JsonObject tleData = fetchTLEData(satID);
-  const char* line1 = tleData["line1"];
-  const char* line2 = tleData["line2"];
-  const char* name = tleData["name"];
+  const char* line1 = tleData["line 1"];
+  const char* line2 = tleData["line 2"];
+  const char* name = tleData["sat_name"];
 
   // Copy string contents. Done because sat.init() will not take const char, but only char
   strcpy(satname, name);      // copy name into satname
@@ -402,9 +349,6 @@ void AT_setup(String satID_str) {
   // Initialize satellite parameters and GS location (site)
   sat.site(GS_lat, GS_lon, GS_alt); //set site (GS) latitude[°], longitude[°] and altitude[m]
   sat.init(satname, tle_line1, tle_line2);
-
-  // Setup the time library. GMT time offset = 0, daylight saving = 0 due to getting epoch being independent of these two.
-  configTime(0, 0, ntpServer);
 }
 
 /*
@@ -418,7 +362,8 @@ void TrackSat () {
 
   // move antenna while it is not yet locked onto the target satellite
   while ((Az_lock_on == false) || (El_lock_on == false)) {
-
+    
+    delay(200);
     // use ADC library to read digital value from conversion
     int16_t AzDigital = ads.readADC_SingleEnded(AZ_ADC_PIN);
     delay(2);
@@ -435,23 +380,26 @@ void TrackSat () {
     // locate satellite relative to GS
     unixtime = getTime();
     sat.findsat(unixtime);
-    delay(10);
+    // delay(10);
 
     float AzDiff = AzAntenna - sat.satAz;
     float ElDiff;
     if (sat.satEl < 0) {
-      ElDiff = ElAntenna;   // make EL go to 0.0 degs.
       Serial.println("SATELLITE-BELOW-HORIZON");
-      delay(5000);    // wait 5 seconds and break out of loop.
+      AZ(String("AZ") + String(sat.satAz));
+      delay(2000);    // wait 5 seconds and break out of loop.
+      SA();
+      SE();
       break;
     }
     else {
       ElDiff = ElAntenna - sat.satEl;
     }
-    // Serial.println(String("sat.satAZ: ") + String(sat.satAz));
+    // Serial.print(String("[sat.satAZ: ") + String(sat.satAz) + String(". AntennaAZ: ") + String(AzAntenna) + String("]    "));
     // Serial.println(String("AzDiff: ") + String(AzDiff));
-    // Serial.println(String("sat.satEl: ") + String(sat.satEl));
+    // Serial.println(String("[sat.satEl: ") + String(sat.satEl) + String(". AntennaEL: ") + String(ElAntenna) + String("]"));
     // Serial.println(String("ElDiff: ") + String(ElDiff));
+
     //check if antenna is outside of its maximum range according to link budget. If so, tell RPI that it should pause its TX or RX. 
     if (LOS && (abs(AzDiff) > max_angle_for_radio || abs(ElDiff) > max_angle_for_radio)) {
       LOS = false;

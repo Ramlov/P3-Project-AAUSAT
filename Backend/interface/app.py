@@ -1,21 +1,18 @@
-from flask import Flask, render_template, request, redirect, send_from_directory, jsonify, url_for
+from flask import Flask, render_template, request, redirect, send_from_directory, jsonify, url_for, Response
 from helper_class import helper
 import os
 from time import sleep
-#import backend_rpi_tunnel as brt
-import ast
-import threading
-#import satnogsApi as satApi
-
-# for testing - delete later
-import random
 import re
+import threading
+import datetime, time
 
 helpers = helper()
 
 app = Flask(__name__)
 satellite_id = 0
 gs_id = 0
+
+sleep(1)
 #sat_list = satApi.get_satellites_list()
 #satellite_name = [sat_list]
 #print(satellite_name)
@@ -44,7 +41,7 @@ def home():
             priority = request.form.get('priority-manual')
             data['groundstation_id'] = groundstation_id
             data['priority'] = priority
-            helpers.data_tunnel(data)
+            #helpers.data_tunnel(data)
             helpers.open_tunnel(gs_id)
             #print(data)
             new_dict = {"process": "START"}
@@ -69,6 +66,7 @@ def home():
             helpers.send_commands(command=new_dict)
             return redirect(url_for('autotrack'))
     return render_template('index.html')
+
 
 @app.route('/webcam', methods=['GET', 'POST'])
 def webcam():
@@ -108,10 +106,9 @@ import json
 def get_orientation():
     commanden = {'key': "PP"}
     response = helpers.send_commands(command=commanden)
+    #print(type(response))
     try:
         pattern = re.compile(r"'azimuth': (?P<azimuth>[\d.]+), 'elevation': (?P<elevation>[\d.]+)")
-
-        # Find the matched pattern in the response string
         match = pattern.search(response[0])
 
         if match:
@@ -121,7 +118,8 @@ def get_orientation():
         else:
             print("No matching pattern found in the response.")
         return jsonify({'azimuth': azimuth, 'elevation': elevation})
-    except:
+    except Exception as e:
+        print(e)
         response = None
         if response is None:
             azimuth = 0
@@ -144,6 +142,8 @@ if __name__ == '__main__':
     #from waitress import serve
     #serve(app, host="0.0.0.0", port=8080)
     try: 
-        app.run(host='0.0.0.0', port=50005, debug=True)
+        app.run(host='0.0.0.0', port=50005, debug=True, use_reloader=False)
     finally:
         helpers.close_connection()
+        cap.stop()
+        cv2.destroyAllWindows()

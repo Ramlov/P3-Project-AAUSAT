@@ -7,8 +7,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles/style.css') }}">
     <link rel="icon" href="{{ url_for('favicon') }}" type="image/x-icon">
-
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
+        .video-container {
+            max-width: 920px;
+            margin: auto;
+        }
+        video {
+            width: 100%;
+            height: auto;
+        }
         .mission-control {
             max-width: 600px;
             margin: 20px auto;
@@ -141,7 +149,9 @@
             </div>
             <p>Values are update once every 5 seconds!</p>
         </div>
-
+        <div class="video-container">
+            <video id="videoPlayer" controls autoplay></video>
+        </div>
     </div>
 </div>
 
@@ -321,6 +331,24 @@
     }
 
     </script>
-
+        <script>
+            var video = document.getElementById('videoPlayer');
+            var videoSrc = 'http://aausat-roof1.space.aau.dk:8000/stream.m3u8';
+        
+            if (Hls.isSupported()) {
+                var hls = new Hls();
+                hls.loadSource(videoSrc);
+                hls.attachMedia(video);
+                hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                    video.play();
+                });
+            }
+            else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = videoSrc;
+                video.addEventListener('loadedmetadata', function() {
+                    video.play();
+                });
+            }
+        </script>
 </body>
 </html>
