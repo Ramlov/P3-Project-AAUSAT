@@ -2,27 +2,15 @@ from flask import Flask, render_template, request, redirect, send_from_directory
 from helper_class import helper
 import os
 from time import sleep
-import ast
 import re
 import threading
 import datetime, time
-import cv2
 
 helpers = helper()
 
 app = Flask(__name__)
 satellite_id = 0
 gs_id = 0
-
-
-outputFrame = None
-lock = threading.Lock()
-
-#source = "rtsp://studuser:Studentspace@localhost:5000/h264Preview_01_main"
-source = "rtsp://studuser:Studentspace@localhost:5000/h264Preview_01_main"
-#source = "rtsp://studuser:Studentspace@roof-aausat.space.aau.dk:554/h264Preview_01_main"
-cap = cv2.VideoCapture(source, cv2.CAP_FFMPEG)
-cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
 sleep(1)
 #sat_list = satApi.get_satellites_list()
@@ -53,7 +41,7 @@ def home():
             priority = request.form.get('priority-manual')
             data['groundstation_id'] = groundstation_id
             data['priority'] = priority
-            helpers.data_tunnel(data)
+            #helpers.data_tunnel(data)
             helpers.open_tunnel(gs_id)
             #print(data)
             new_dict = {"process": "START"}
@@ -78,36 +66,6 @@ def home():
             helpers.send_commands(command=new_dict)
             return redirect(url_for('autotrack'))
     return render_template('index.html')
-
-def stream():
-    global outputFrame, lock
-    while True:
-        frame = cap.read()
-        if frame.shape:
-            frame = cv2.resize(frame, (640, 360))
-            with lock:
-                outputFrame = frame.copy()
-        else:
-            continue
-
-
-def generate():
-    global outputFrame, lock
-    while True:
-        with lock:
-            if outputFrame is None:
-                continue
-            (flag, encodedImage) = cv2.imencode(".jpg", outputFrame)
-            if not flag:
-                continue
-        yield(b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + 
-            bytearray(encodedImage) + b'\r\n')
-
-@app.route("/video_feed")
-def video_feed():
-    return Response(generate(),
-        mimetype="multipart/x-mixed-replace; boundary=frame")
-
 
 
 @app.route('/webcam', methods=['GET', 'POST'])
@@ -183,9 +141,6 @@ def autotracking_info():
 if __name__ == '__main__':
     #from waitress import serve
     #serve(app, host="0.0.0.0", port=8080)
-    t = threading.Thread(target=stream, args=())
-    t.daemon = True
-    t.start()
     try: 
         app.run(host='0.0.0.0', port=50005, debug=True, use_reloader=False)
     finally:

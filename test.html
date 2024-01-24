@@ -1,29 +1,50 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RTSP Video Stream</title>
-  <link href="https://unpkg.com/video.js/dist/video-js.css" rel="stylesheet">
-  <script src="https://unpkg.com/video.js/dist/video.js"></script>
-  <script src="https://cdn.rawgit.com/Streamedian/html5_rtsp_player/master/dist/html5_rtsp_player.js"></script>
+    <meta charset="UTF-8">
+    <title>HLS Stream Player</title>
+    <!-- Include hls.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        /* Simple styling for the video container */
+        .video-container {
+            max-width: 640px; /* You can adjust this as needed */
+            margin: auto;
+        }
+        video {
+            width: 100%; /* Make video responsive */
+            height: auto;
+        }
+    </style>
 </head>
 <body>
-  <div>
-    <video id="video" class="video-js vjs-default-skin" controls></video>
-  </div>
 
-  <script>
-    const options = {
-      controls: true,
-      width: 640,
-      height: 360,
-    };
+<div class="video-container">
+    <!-- Video tag where the HLS stream will be played -->
+    <video id="videoPlayer" controls autoplay></video>
+</div>
 
-    const player = new Html5_rtsp_player("#video", options);
-    const rtspUrl = "rtsp://studuser:Studentspace@roof-aausat.space.aau.dk:554/h264Preview_01_main";
-    
-    player.play(rtspUrl).catch(error => console.error('Error:', error));
-  </script>
+<script>
+    // HLS.js example to load and play an HLS stream
+    var video = document.getElementById('videoPlayer');
+    var videoSrc = 'http://aausat-roof1.space.aau.dk:8000/stream.m3u8'; // Replace with your Raspberry Pi's IP and port
+
+    if (Hls.isSupported()) {
+        var hls = new Hls();
+        hls.loadSource(videoSrc);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, function() {
+            video.play();
+        });
+    }
+    // For browsers that have native HLS support
+    else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = videoSrc;
+        video.addEventListener('loadedmetadata', function() {
+            video.play();
+        });
+    }
+</script>
+
 </body>
 </html>
