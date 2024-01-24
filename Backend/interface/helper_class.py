@@ -82,8 +82,10 @@ class helper:
         try:
             # Creating socket 
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # ipv4 address & TCP socket
+            gs_address = "172.26.12.59"
+            port = 13447
             self.sock.connect((gs_address, port))
-
+            #self.sock.connect()
             print(self.sock)
 
             # receive_thread = threading.Thread(target= self.receive_response(), args=())

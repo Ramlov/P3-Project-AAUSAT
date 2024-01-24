@@ -18,6 +18,7 @@ gs_id = 0
 outputFrame = None
 lock = threading.Lock()
 
+#source = "rtsp://studuser:Studentspace@localhost:5000/h264Preview_01_main"
 source = "rtsp://studuser:Studentspace@localhost:5000/h264Preview_01_main"
 #source = "rtsp://studuser:Studentspace@roof-aausat.space.aau.dk:554/h264Preview_01_main"
 cap = cv2.VideoCapture(source, cv2.CAP_FFMPEG)
@@ -52,7 +53,7 @@ def home():
             priority = request.form.get('priority-manual')
             data['groundstation_id'] = groundstation_id
             data['priority'] = priority
-            #helpers.data_tunnel(data)
+            helpers.data_tunnel(data)
             helpers.open_tunnel(gs_id)
             #print(data)
             new_dict = {"process": "START"}
