@@ -2,17 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>HLS Stream Player</title>
-    <!-- Include hls.js library -->
+    <title>Webcam stream</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
-        /* Simple styling for the video container */
         .video-container {
-            max-width: 640px; /* You can adjust this as needed */
+            max-width: 640px;/*Dette kan du bare justere, så det passer*/
             margin: auto;
         }
         video {
-            width: 100%; /* Make video responsive */
+            width: 100%;
             height: auto;
         }
     </style>
@@ -20,14 +18,12 @@
 <body>
 
 <div class="video-container">
-    <!-- Video tag where the HLS stream will be played -->
     <video id="videoPlayer" controls autoplay></video>
 </div>
 
 <script>
-    // HLS.js example to load and play an HLS stream
     var video = document.getElementById('videoPlayer');
-    var videoSrc = 'http://aausat-roof1.space.aau.dk:8000/stream.m3u8'; // Replace with your Raspberry Pi's IP and port
+    var videoSrc = 'http://aausat-roof1.space.aau.dk:8000/stream.m3u8';
 
     if (Hls.isSupported()) {
         var hls = new Hls();
@@ -37,7 +33,6 @@
             video.play();
         });
     }
-    // For browsers that have native HLS support
     else if (video.canPlayType('application/vnd.apple.mpegurl')) {
         video.src = videoSrc;
         video.addEventListener('loadedmetadata', function() {
