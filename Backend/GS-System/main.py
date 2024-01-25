@@ -8,8 +8,6 @@ from helper_functions import db_setup, execute_query, drop_tables, queue_control
 
 def main():
     # Declare Variables
-    new_entries: list = [] # This list will hold the user submitted tasks when they are first discovered by the backend. Used in gs_sel_algo.
-    gs_list: list = [] # This list will hold GS which has already been paired against the queue with no luck. Used to avoid double checking tasks against the same GS
     printed = False
 
     # Load Configuration File
@@ -29,7 +27,7 @@ def main():
         database = DB_NAME
     )
 
-    # drop_tables(database=database)
+    #drop_tables(database=database)
 
     # Connect if the Database is empty
     if not execute_query(database=database, sql="SHOW TABLES"):
