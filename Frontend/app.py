@@ -55,7 +55,7 @@ def home():
             data['satellite_id'] = satellite_id
             data['priority'] = priority
             print(f"AT data {data}")
-            #gs_id = helpers.data_tunnel(data)
+            gs_id = helpers.data_tunnel(data)
             
             print(f"GSid in app {gs_id}")
             # append selected groundstation to data
