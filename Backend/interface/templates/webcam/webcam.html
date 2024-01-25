@@ -8,9 +8,6 @@
         <link rel= "stylesheet" type= "text/css" href= "{{ url_for('static',filename='styles/style.css') }}">
         <link rel="icon" href="{{ url_for('favicon') }}" type="image/x-icon">
 
-    </head>
-
-    <body>
         <header>
           <nav>
             <div class="logo"><a href="/">AAU SAT Mission control</a></div>
@@ -20,26 +17,47 @@
             </ul>
           </nav>
         </header>
-        
-        <video id="video" autoplay></video>
-        <script>
-            const video = document.getElementById('video');
+        <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+        <style>
+            .video-container {
+                max-width: 920px;
+                margin: auto;
+            }
+            video {
+                width: 100%;
+                height: auto;
+            }
+        </style>
+    </head>
+
     
-            // Use navigator.mediaDevices to access the webcam
-            navigator.mediaDevices.getUserMedia({ video: true })
-                .then(stream => {
-                    video.srcObject = stream;
-                })
-                .catch(error => {
-                    console.error('Error accessing webcam:', error);
-                });
-        </script>
-
-
+    <body>
+    
+    <div class="video-container">
+        <video id="videoPlayer" controls autoplay></video>
+    </div>
 
         <footer>
           <p>©Copyright <a href="https://github.com/Ramlov/P3-Project">AAU COMTEK GRP 351</a></p>
         </footer>
-        <script src="/static/script.js"></script
+        <script>
+          var video = document.getElementById('videoPlayer');
+          var videoSrc = 'http://aausat-roof1.space.aau.dk:8000/stream.m3u8';
+      
+          if (Hls.isSupported()) {
+              var hls = new Hls();
+              hls.loadSource(videoSrc);
+              hls.attachMedia(video);
+              hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                  video.play();
+              });
+          }
+          else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+              video.src = videoSrc;
+              video.addEventListener('loadedmetadata', function() {
+                  video.play();
+              });
+          }
+      </script>
       </body>
 </html>

@@ -1,10 +1,10 @@
 from json import load
 import pymysql
 import time
-import backend_rpi_tunnel as brt
 import socket
 import threading
-
+import requests
+from time import sleep
 
 class helper:
     def __init__(self):
@@ -20,53 +20,48 @@ class helper:
     def data_tunnel(self, data):
         print(data)
         tracking_mode = data["tracking_mode"]
+        prio = data['priority']
+
         if tracking_mode == "MANUAL":
-            sat_id = data['groundstation_id']
-            prio = data['priority']
+            user = "Dinmor"
             method = 3
-            user= "Dinmor"
-            task = data.get('task', '') # default value for task
-            self.db_cur.execute(f'INSERT INTO Queue_Table (Sat_ID, User, Method, Task, Prio) VALUES (%s, %s, %s, %s, %s)', (sat_id, user, method, task, prio))
-            self.database.commit()
-            
-            # Collecting latest entry from queue table, to be able to identify it in the GS table
-            query = (f"SELECT Entry FROM Queue_Table WHERE User = %s ORDER BY Entry DESC LIMIT 1")
-            self.db_cur.execute(query, (user,))
-            entry = self.db_cur.fetchone()[0]
-            print(entry)
-            self.check_available(sat_id, entry)
-
+            sat_id = data['groundstation_id']
         elif tracking_mode == "AUTOTRACKING":
+            user = "Dinfar"
+            method = 2
             sat_id = data['satellite_id']
-            prio = data['priority']
-            method = 2 # 2 eller 3 
-            user = "dinfar"
-            task = "AT"
-            self.db_cur.execute(f'INSERT INTO Queue_Table (Sat_ID, User, Method, Task, Prio) VALUES (%s, %s, %s, %s, %s)', (sat_id, user, method, task, prio))
-            self.database.commit()
 
-            # Collecting latest entry from queue table, to be able to identify it in the GS table
-            query = (f"SELECT Entry FROM Queue_Table WHERE User = %s ORDER BY Entry DESC LIMIT 1")
-            self.db_cur.execute(query, (user,))
-            entry = self.db_cur.fetchone()[0]
-            print(entry)
-            # self.check_available(sat_id, entry)
+        self.db_cur.execute(f'INSERT INTO Queue_Table (Sat_ID, User, Method, Prio) VALUES (%s, %s, %s, %s)', (sat_id, user, method, prio))
+        self.database.commit()
+        
+        # Collecting latest entry from queue table, to be able to identify it in the GS table
+        query = (f"SELECT Entry FROM Queue_Table WHERE User = %s ORDER BY Entry DESC LIMIT 1")
+        self.db_cur.execute(query, (user,))
+        entry = self.db_cur.fetchone()[0]
+        print(entry)
+
+        gs_id = self.check_available(sat_id, entry)
+        print(f"GSID in datatunnel: {gs_id}")
+
+        return gs_id
 
 
     def check_available(self, sat_id, entry):
         while True:
             time.sleep(2)
-            query = "SELECT Entry FROM GS_Table WHERE GS_ID = %s"
-            self.db_cur.execute(query, (sat_id,))
+            query = "SELECT GS_ID, Entry FROM GS_Table"
+            self.db_cur.execute(query)
             try:
-                result = self.db_cur.fetchone()[0]
+                result = self.db_cur.fetchall()
             except:
                 result = None
             print(result)
             
-            if entry == result:
-                print("Open Tunnel")
-                return True
+            for gs in result:
+                if entry == gs[1]:
+                    print("Open Tunnel")
+                    return gs[0]
+                
             self.database.commit()
 
     
@@ -74,19 +69,24 @@ class helper:
         self.db_cur.close()
         self.database.close()
     
-    def open_tunnel(self):
-        aau = self.config["groundstations"][0]
-        gs_address = aau["gs_address"]
-        port = aau["port"]
+    def open_tunnel(self, gs_id):
+        print("gs_id in open_tunnel: ", gs_id)
+        groundstation = self.config["groundstations"][int(gs_id)-1]
+        gs_address = groundstation["gs_address"]
+        port = groundstation["port"]
         self.connect_to_groundstation(gs_address, port)
+
         
 
     def connect_to_groundstation(self, gs_address, port):
         try:
             # Creating socket 
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # ipv4 address & TCP socket
-            # Connecting to Ground station (Rasberry Pi)
+            gs_address = "172.26.12.59"
+            port = 13447
             self.sock.connect((gs_address, port))
+            #self.sock.connect()
+            print(self.sock)
 
             # receive_thread = threading.Thread(target= self.receive_response(), args=())
             # receive_thread.start()
@@ -100,16 +100,88 @@ class helper:
 
         for key, value in command.items():
             if key == "el":
+                key = key.upper()
                 operation.append(key + value)
             elif key == "az":
+                key = key.upper()
                 operation.append(key + value)
+            elif value == "STOP":
+                operation.append(value)
+                self.remove_task_from_db()
+                # sql = "UPDATE GS_Table SET Entry = NULL, Sat_ID = NULL, Method = NULL, Pass_Start = NULL, Pass_End = NULL WHERE GS_ID = 1"
+                # self.db_cur.execute(sql)
+                # self.database.commit()
+                # try:
+                #     with self.database.cursor() as cursor:
+                #         sql = "DELETE FROM GS_Table WHERE GS_ID = 1"
+                #         cursor.execute(sql)
+                #         self.database.commit()
+
+                # finally:
+                #     self.database.close()
             else:
                 operation.append(value)
-
         for item in operation:
-            print(operation)
-            print(item)
+            if not self.sock:
+                return None
             self.sock.send(item.encode('utf-8'))
             response = self.sock.recv(1024).decode('utf-8')
             responses.append(response)
-        print( responses)
+        return(responses)
+        
+    def send_auto_command(self, satellite_id, gs_id):
+            sleep(5)
+            AT_command = "AT" + str(satellite_id)
+            print(AT_command)
+            self.sock.send(AT_command.encode(self.FORMAT))
+    
+    def check_notrack(self, satellite_id, gs_id):
+        # Initialize Variable
+        lock_on = False
+        
+        while True:
+            sleep(6)
+            query = f"SELECT Dump FROM Dump_Table WHERE GS_ID = {gs_id} ORDER BY Log_ID DESC"
+            self.db_cur.execute(query)
+            response = self.db_cur.fetchone()
+            self.database.commit()
+
+            print(response)
+
+            if response:
+                if response[0] == "OK - LOCK_ON: True": 
+                    print(f"[LOCK ON]: Currently tracking {satellite_id}")
+                    lock_on = True
+
+                elif response[0] == "SATELLITE-BELOW-HORIZON":
+                    if lock_on == True:
+                        print("Autotrack done")
+                        self.remove_task_from_db()
+                        return False
+
+                elif response[0] == "OK - LOCK_ON: False":
+                    print(f"[LOCK OFF]: Not tracking {satellite_id}")
+                    lock_on = True
+
+                else:
+                    time.sleep(1)
+                    print("Waiting for status response from Esp32")
+
+
+
+    def remove_task_from_db(self):
+        query = "UPDATE GS_Table SET Entry = NULL, Sat_ID = NULL, Method = NULL, Pass_Start = NULL, Pass_End = NULL WHERE GS_ID = 1"
+        self.db_cur.execute(query)
+        self.database.commit()
+    
+    def get_timestamps_for_satID(self, sat_id):
+        query = "SELECT (Pass_Start, Pass_Stop) FROM GS_Table WHERE GS_ID = %s"
+        self.db_cur.execute(query, (sat_id,))
+        try:
+            result_start = self.db_cur.fetchone()[0]
+            result_stop = self.db_cur.fetchone()[0]
+        except:
+            result_start, result_stop = None
+        print("Pass Start:", result_start)
+        print("Pass Stop:", result_stop)
+        self.database.commit()
