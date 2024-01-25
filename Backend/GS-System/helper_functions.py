@@ -16,7 +16,8 @@ def watch_manual(database: pymysql.Connection, best_match):
     log = 0
     valid_log = None
     GS_ID = best_match[0]
-    keywords_to_check = ['PP_OK', 'azimuth', 'elevation', 'PP_WAIT']
+    keywords_to_ignore = ['PP_OK', 'azimuth', 'elevation', 'PP_WAIT']
+    watchdog_time = 20 # The allowing the User to do stuff without being kicked in seconds
 
     task_id = execute_query(database=database, sql=f"SELECT Entry FROM GS_Table WHERE GS_ID = {GS_ID}")
 
@@ -32,13 +33,13 @@ def watch_manual(database: pymysql.Connection, best_match):
 
             print(f"new logs: {new_logs}")
             for new_log in new_logs:
-                keyword_found = False  # Initialize the flag for each entry
-                for keyword in keywords_to_check:
-                    if keyword in new_log[1]:
-                        keyword_found = True
+                ignorekey_found = False  # Initialize the flag for each entry
+                for ignorekey in keywords_to_ignore:
+                    if ignorekey in new_log[1]:
+                        ignorekey_found = True
                         break
 
-                if not keyword_found:
+                if not ignorekey_found:
                     print(f"Valid Entry Detected: {new_log}")
                     valid_log = new_log[0]
                     break
@@ -57,7 +58,7 @@ def watch_manual(database: pymysql.Connection, best_match):
             print("New Task assigned to GS...")
             break
 
-        time.sleep(300) # Await5 minutes
+        time.sleep(watchdog_time)
     
     print(f"Exiting Watchdog for {GS_ID}")
 
@@ -115,7 +116,7 @@ def gs_trajectory_match(database: pymysql.Connection, sat_id: int, gs_list: list
             # Make a Ground Station object
             GS = Topos(latitude_degrees=GS_lat, longitude_degrees=GS_lon, elevation_m=GS_alt)
 
-            # Calculate the next pass - check 8 hours (1/3 days) into the future
+            # Calculate the next pass - check 1 hour (1/24 days) into the future
             t = ts.now()
             times, events = satellite.find_events(GS, t, t + timedelta(days = T_delta), altitude_degrees=LOS_DEGS)
 
@@ -176,9 +177,9 @@ def gs_sel_algorithm(database: pymysql.Connection):
                         threading.Thread(target=watch_manual, args=(database, best_match)).start()
 
                         break
-
-                pass_start = time.time()
-                pass_stop = pass_start
+                
+                # Add Start time to manual control of groundstation
+                pass_start, pass_stop = time.time(), time.time()
                 
             else:
                 # Last option, no new entries of newly available GSs, therefore no reason to check.
@@ -360,6 +361,7 @@ def db_setup(database: pymysql.Connection):
         # Create Log_Table
         execute_query(database=database, sql="CREATE TABLE Dump_Table (Log_ID INT AUTO_INCREMENT PRIMARY KEY, GS_ID INT, Dump VARCHAR(1000));")
 
+        execute_query(database=database, sql="INSERT INTO GS_Table (GS_ID, GS_Name, Coords, IP, Entry, Sat_ID, Method, Pass_Start, Pass_End) VALUES (1, 'AAU GS', '57.0139449, 9.9875578, 21.0', NULL, NULL, NULL, NULL, NULL, NULL);")
         return ("Tables Created")
 
     except Exception as e:
