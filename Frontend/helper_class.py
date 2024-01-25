@@ -130,7 +130,7 @@ class helper:
         return(responses)
         
     def send_auto_command(self, satellite_id, gs_id):
-            sleep(5)
+            sleep(2)
             AT_command = "AT" + str(satellite_id)
             print(AT_command)
             self.sock.send(AT_command.encode(self.FORMAT))
@@ -140,7 +140,7 @@ class helper:
         lock_on = False
         
         while True:
-            sleep(6)
+            sleep(2)
             query = f"SELECT Dump FROM Dump_Table WHERE GS_ID = {gs_id} ORDER BY Log_ID DESC"
             self.db_cur.execute(query)
             response = self.db_cur.fetchone()
@@ -185,12 +185,8 @@ class helper:
             result_start, result_stop = None, None
         print("Pass Start:", result_start)
         print("Pass Stop:", result_stop)
-        try:
-            datetime_start = datetime.datetime.fromtimestamp(result_start).strftime('%Y-%m-%d %H:%M:%S')
-            datetime_stop = datetime.datetime.fromtimestamp(result_stop).strftime('%Y-%m-%d %H:%M:%S')
-        except:
-            datetime_start = result_start
-            datetime_stop = result_stop 
+        print(type(result_start))
+
         self.database.commit()
-        return datetime_start, datetime_stop
+        return result_start, result_stop
 
