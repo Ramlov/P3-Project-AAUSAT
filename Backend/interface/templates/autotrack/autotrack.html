@@ -5,8 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles/style.css') }}" />
   <link rel="icon" href="{{ url_for('favicon') }}" type="image/x-icon" />
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 
   <style>
+      .video-container {
+          max-width: 920px;
+          margin: auto;
+      }
+      video {
+          width: 100%;
+          height: auto;
+      }
     body {
       font-family: Arial, sans-serif;
       margin: 20px;
@@ -50,8 +59,11 @@
       <span class="info-label">Next Pass:</span>
       <span class="info-value" id="next-pass">Loading...</span>
     </div>
-    <img src="{{ url_for('video_feed') }}">
+    <div class="video-container">
+      <video id="videoPlayer" controls autoplay></video>
   </div>
+  </div>
+
 
   <script>
     // Add a script to update the selected satellite
@@ -99,6 +111,27 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
   </script>
+
+</script>
+<script>
+    var video = document.getElementById('videoPlayer');
+    var videoSrc = 'http://aausat-roof1.space.aau.dk:8000/stream.m3u8';
+
+    if (Hls.isSupported()) {
+        var hls = new Hls();
+        hls.loadSource(videoSrc);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, function() {
+            video.play();
+        });
+    }
+    else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = videoSrc;
+        video.addEventListener('loadedmetadata', function() {
+            video.play();
+        });
+    }
+</script>
 
 </body>
 

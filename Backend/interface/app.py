@@ -41,9 +41,9 @@ def home():
             priority = request.form.get('priority-manual')
             data['groundstation_id'] = groundstation_id
             data['priority'] = priority
-            #helpers.data_tunnel(data)
+            helpers.data_tunnel(data)
             helpers.open_tunnel(gs_id)
-            #print(data)
+            print(data)
             new_dict = {"process": "START"}
             helpers.send_commands(command=new_dict)
             sleep(5)
@@ -54,7 +54,7 @@ def home():
             priority = request.form.get('priority-auto')
             data['satellite_id'] = satellite_id
             data['priority'] = priority
-            #print(f"AT data {data}")
+            print(f"AT data {data}")
             gs_id = helpers.data_tunnel(data)
             
             print(f"GSid in app {gs_id}")
@@ -64,6 +64,7 @@ def home():
             helpers.open_tunnel(gs_id=gs_id)
             new_dict = {"process": "START"}
             helpers.send_commands(command=new_dict)
+            sleep(3)
             return redirect(url_for('autotrack'))
     return render_template('index.html')
 
