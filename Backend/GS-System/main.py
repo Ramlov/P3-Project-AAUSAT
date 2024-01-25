@@ -43,11 +43,11 @@ def main():
 
     while True:
         # Run Queue Controller/Algorithm
-        new_entries, queue_check = queue_controller(database=database)
+        queue_check = queue_controller(database=database)
 
         if queue_check == True: # If there are items in the queue
             print("Submission Found - Running Groundstation Selection Algorithm")
-            gs_list = gs_sel_algorithm(database=database, new_entries=new_entries, gs_list=gs_list)
+            gs_sel_algorithm(database=database)
             printed = False
         
         else:
@@ -56,7 +56,7 @@ def main():
                 print("Awaiting Submission in Queue")
                 printed = True
 
-        #Run every 5 sec
+        #Run every 3 sec
         time.sleep(3)
 
 
