@@ -39,7 +39,7 @@ class helper:
         query = (f"SELECT Entry FROM Queue_Table WHERE User = %s ORDER BY Entry DESC LIMIT 1")
         self.db_cur.execute(query, (user,))
         entry = self.db_cur.fetchone()[0]
-        print(entry)
+        print(f'Position in queue: {entry}')
 
         gs_id = self.check_available(sat_id, entry)
         print(f"GSID in datatunnel: {gs_id}")
@@ -56,7 +56,8 @@ class helper:
                 result = self.db_cur.fetchall()
             except:
                 result = None
-            print(result)
+            print(f'Current task at selected GS: {result[0][1]}')
+            print(f'Task(s) in front of you: {(entry-result[0][1])}')
             
             for gs in result:
                 if entry == gs[1]:
@@ -86,11 +87,7 @@ class helper:
             gs_address = "172.26.12.59"
             port = 13446
             self.sock.connect((gs_address, port))
-            #self.sock.connect()
             print(self.sock)
-
-            # receive_thread = threading.Thread(target= self.receive_response(), args=())
-            # receive_thread.start()
 
         except ConnectionRefusedError:
             print(f"Connection to Ground station address: {gs_address} | Port: {port} -> refused")
@@ -108,17 +105,7 @@ class helper:
             elif value == "STOP":
                 operation.append(value)
                 self.remove_task_from_db()
-                # sql = "UPDATE GS_Table SET Entry = NULL, Sat_ID = NULL, Method = NULL, Pass_Start = NULL, Pass_End = NULL WHERE GS_ID = 1"
-                # self.db_cur.execute(sql)
-                # self.database.commit()
-                # try:
-                #     with self.database.cursor() as cursor:
-                #         sql = "DELETE FROM GS_Table WHERE GS_ID = 1"
-                #         cursor.execute(sql)
-                #         self.database.commit()
 
-                # finally:
-                #     self.database.close()
             else:
                 operation.append(value)
         for item in operation:
