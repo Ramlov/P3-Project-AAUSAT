@@ -30,6 +30,7 @@
             100% { transform: rotate(360deg); }
         }
     </style>
+
 </head>
 
 <body>
@@ -45,13 +46,14 @@
 
     <div class="mission-control">
         <h1>Mission Control</h1>
-        <form method="POST" action="/" onsubmit="showLoading()">
+        <form method="POST" action="/" onsubmit="showLoading();">
             <div class="control-options">
                 <label for="tracking-mode">Select Tracking Mode:</label>
                 <select id="tracking-mode" name="tracking-mode">
-                    <option value="EZCOM2">EZCOM2</option>
+                    <option value="EZCOM2">MODE</option>
                     <option value="MANUAL">Manual</option>
                     <option value="AUTOTRACKING">Autotracking</option>
+                    <option value="AUTOINPUT">Autotracking - Manual SATID input</option>
                 </select>
             </div>
 
@@ -67,12 +69,16 @@
                     <option value="40968">BISONSAT</option>
                     <option value="44530">Taurus-1</option>
                     <option value="32953">YUBILEINY</option>
-                    <option value="manual-entry">Manual Entry</option>
+                    <option value="58472">EIRSAT-1</option>
+                    <option value="47445">SOMP 2b</option>
+                    <option value="47964">SMOG 1</option>
+                    <option value="52899">SNUGLITE-II</option>
+                    <option value="50988">Tevel-3</option>
+                    <option value="20442">LUSAT</option>
+                    <option value="47438">UVSQ-SAT</option>
+                    <option value="55098">BDSAT-2</option>
                 </select>
-            
-                <!-- Display this input field when 'Manual Entry' is selected -->
-                <input type="text" id="manual-satellite-input" name="manual-satellite-input" placeholder="Enter Satellite ID" style="display: none;">
-            
+
                 <label for="priority-auto">Priority:</label>
                 <select id="priority-auto" name="priority-auto">
                     <option value="1">Urgent</option>
@@ -100,6 +106,22 @@
                     <option value="5">Very Low</option>
                 </select>
             </div>
+
+            <div id="autoinput-controls" class="control-group">
+                <p><i>Note: Please input NORAD ID of the satellite you want to track <br> Future passes over the AAU GS can be found <a href="https://network.satnogs.org/stations/207/">here</a></i></p>
+                <label for="satellite-id_input">Satellite ID:</label>
+                <input type="text" id="satellite-id_input" name="satellite-id_input" placeholder="Enter Satellite ID">
+
+                <label for="priority-autoinput">Priority:</label>
+                <select id="priority-autoinput" name="priority-autoinput">
+                    <option value="1">Urgent</option>
+                    <option value="2">High</option>
+                    <option value="3" selected>Normal</option>
+                    <option value="4">Low</option>
+                    <option value="5">Very Low</option>
+                </select>
+            </div>
+
 
             <div class="loading-container" id="loading-container">
                 <div class="loading-spinner"></div>
@@ -137,21 +159,6 @@
                 }
             });
         }
-
-
-
-        document.addEventListener('DOMContentLoaded', function () {
-        var satelliteDropdown = document.getElementById('satellite-id');
-        var manualEntryField = document.getElementById('manual-satellite-input');
-
-        satelliteDropdown.addEventListener('change', function () {
-            if (satelliteDropdown.value === 'manual-entry') {
-                manualEntryField.style.display = 'block';
-            } else {
-                manualEntryField.style.display = 'none';
-            }
-        });
-    });
     </script>
 </body>
 </html>

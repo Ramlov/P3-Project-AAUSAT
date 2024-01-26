@@ -15,16 +15,13 @@ control_pin = 23
 
 GPIO.setup(control_pin, GPIO.OUT)
 
-host = '0.0.0.0'
+host = '172.26.12.59'
 port = 13446
-version = "Raspberry pi version: 1.1.7"
+version = "Raspberry pi version: 1.2.7"
 
-firstresponders = "write START when ready to connect to ESP32: "
-
-# Define the serial port and baud rate
-serial_port = '/dev/ttyUSB0'
 
 baud_rate = 115200
+
 
 db_info = {
     "host": "system-database.cwctijm9dz2w.eu-central-1.rds.amazonaws.com",
@@ -37,27 +34,28 @@ db_info = {
 db_connection = pymysql.connect(**db_info)
 db_cursor = db_connection.cursor()
 
+
+
 while True:
     try:
         # Initialize the serial connection
         serial_port = '/dev/ttyUSB0'
         ser = serial.Serial(serial_port, baud_rate, timeout=1)
-        print("Connected to {} successfully!".format(serial_port))
+        print(f"Connected to {serial_port} successfully!")
         break  # exit the loop if the connection is successful
     except serial.SerialException:
-        print("Failed to connect to {}. Retrying in 5 seconds...".format(serial_port))
+        print(f"Failed to connect to {serial_port}. Retrying in 5 seconds...")
         sleep(3)
     try:
         # Initialize the serial connection
         serial_port = '/dev/ttyUSB1'
         ser = serial.Serial(serial_port, baud_rate, timeout=1)
-        print("Connected to {} successfully!".format(serial_port))
+        print(f"Connected to {serial_port} successfully!")
         break  # exit the loop if the connection is successful
     except serial.SerialException:
-        print("Failed to connect to {}. Retrying in 5 seconds...".format(serial_port))
+        print(f"Failed to connect to {serial_port}. Retrying in 5 seconds...")
         sleep(3)
 
-connected_clients = []
 send_thread_running = False
 
 def read_and_print_output(client_socket):
@@ -66,19 +64,14 @@ def read_and_print_output(client_socket):
     raw = False
     if client_socket == "MAN":
         while True:
-            response = ser.readline().decode().strip()
+            response = ser.readline().decode('utf-8', errors='replace').strip()
+            #print(response)
             if response:
                 try:
-                    insert_query = "INSERT INTO Dump_Table (Dump, GS_ID) VALUES (%s, %s)"
-                    #print(gs_id)
-                    db_cursor.execute(insert_query, (response, gs_id,))
-                    db_connection.commit()
+                    print(response)
+                    process_response(response)
                 except:
                     pass
-                if raw:
-                    print(response)
-                else:
-                    print(process_response(response))
     else:
         while True:
             if send_thread_running == False:
@@ -96,14 +89,15 @@ def read_and_print_output(client_socket):
                     db_connection.commit()
                 except:
                     pass
-                #print(connected_clients)
                 #print(client_socket)
                 print(response)
                 if raw:
                     client_socket.send(response.encode())
                 else:
                     try:
-                        client_socket.send(process_response(response).encode())
+                        process_response(response)
+                        client_socket.send(response.encode())
+                        #client_socket.send(process_response(response).encode())
                     except:
                         pass
 
@@ -112,10 +106,11 @@ def process_response(response):
     try:
         command, status = parts[0], parts[1]
         if status == "OK":
-            return("{} completed successfully \n Enter a command (or 'help' for command list): ".format(command))
+            return(f"{command} OK")
         elif status == "WAIT":
-            return("{} is in progress. Waiting for completion...".format(command))
+            return(f"{command} is in progress. Waiting for completion...")
         elif status == "TLE":
+            _ = update_time_ntp()
             tle = get_TLE(parts[2])
             json_str = json.dumps(tle)
             encoded_data = (json_str + '\n').encode()
@@ -123,7 +118,6 @@ def process_response(response):
             #print("test")
             return(tle)
         elif status == "TIME":
-            status = update_time_ntp()
             current_time = datetime.now(timezone.utc)
             denmark_timezone = timezone(timedelta(hours=1))
             current_time_denmark = current_time.astimezone(denmark_timezone)
@@ -132,12 +126,12 @@ def process_response(response):
             ser.write(epoch_time.encode() + b'\n')
             #return("TIME UPDATE")
         elif command == "VE":
-            return("{} {}".format(command, parts[1]))
+            return(f"{command} {parts[1]}")
         elif status == "ERROR":
-            return("{} encountered an error.  \n Enter a command (or 'help' for command list): ".format(command))
+            return(f"{command} encountered an error.  \n Enter a command (or 'help' for command list): ")
             if len(parts) >= 3:
                 error_code = parts[2]
-                return("Error Code: {}  \n Enter a command (or 'help' for command list): ".format(error_code))
+                return(f"Error Code: {error_code}  \n Enter a command (or 'help' for command list): ")
     except:
         return("RAW OUTPUT: ", response)
 
@@ -173,34 +167,24 @@ def send_user_commands():
         elif command == "STOP":
             print("Received STOP command. Setting pin LOW.")
             GPIO.output(control_pin, GPIO.LOW)
-        elif command in list_of_commands or 1 == 1:
+        elif command in list_of_commands:
             if command == "VE":
                 ser.write(command.encode() + b'\n')
                 print(version)
-            ser.write(command.encode() + b'\n')
+            else:
+                ser.write(command.encode() + b'\n')
         else:
             print("Commands do not exist!")
 
-current_client = None  # Variable to store the current connected client
 
 def handle_client(client_socket):
-    global current_client
+    current_client = None
     global send_thread_running
     GPIO.output(control_pin, GPIO.LOW)
     sleep(1)
-    client_socket.send(firstresponders.encode())
-
-    # Close the connection with the old client if there is one
-    if current_client:
-        print("Closing connection with the old client.")
-        current_client.close()
 
     # Set the current client to the new client
     current_client = client_socket
-
-    # Add the client to the list of connected clients
-    connected_clients.append(client_socket)
-    print(connected_clients)
     # Restart the send_thread if it's not running
     send_thread_running = True
     send_thread = threading.Thread(target=read_and_print_output, args=(client_socket,))
@@ -219,37 +203,29 @@ def handle_client(client_socket):
                 print("STOPPGINASIDNASOIDJNAS")
                 GPIO.output(control_pin, GPIO.LOW)
             else:
+                print(data)
                 ser.write(data + b'\n')
                 if data.decode() == "VE":
-                    # Send version to all connected clients
-                    for client in connected_clients:
-                        client.send(version.encode())
+                    client.send(version.encode())
         except ConnectionResetError:
             print("Client connection reset by peer.")
             send_thread_running = False
             break  # Break out of the loop if there's a connection reset
         except Exception as e:
-            print("Error handling client: {}".format(e))
+            print(f"Error handling client: {e}")
             break  # Break out of the loop if there's an unexpected error
 
-    # Remove the client from the list of connected clients
-    try:
-        connected_clients.remove(current_client)
-    except ValueError:
-        pass  # Ignore if the client is not in the list
+
 
     current_client.close()  # Close the client socket
-
-    # Check if there are still connected clients
-    if not connected_clients:
-        send_thread_running = False
 
     # Reset the current client to None when the client disconnects
     current_client = None
 
 def get_TLE(sat_id):
+
     response = requests.get(
-        url='https://tle.ivanstanojevic.me/api/tle/{}'.format(sat_id))
+        url=f'https://tle.ivanstanojevic.me/api/tle/{sat_id}')
 
     result = response.json()
 
@@ -260,24 +236,28 @@ def get_TLE(sat_id):
     }
     return TLE_dict
 
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="ESP32 Control Program")
     parser.add_argument("mode", choices=["MAN", "TUN"], help="Operating mode (MAN or TUN)")
     # parser.add_argument("raw", choices=["True", "False"], help="Raw output (True or False)")
     args = parser.parse_args()
-
+    GPIO.output(control_pin, GPIO.LOW)
     if args.mode == "MAN":
+        print("Write START when ready!")
         command_thread = threading.Thread(target=send_user_commands)
         output_thread = threading.Thread(target=read_and_print_output, args=("MAN",))
         output_thread.start()
         command_thread.start()
         output_thread.join()
         command_thread.join()
+
     elif args.mode == "TUN":
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.bind((host, port))
         server_socket.listen(1)
-        print("Server listening on {}:{}".format(host, port))
+        print(f"Server listening on {host}:{port}")
         while True:
             client_socket, client_address = server_socket.accept()
             print("Connection from", client_address)

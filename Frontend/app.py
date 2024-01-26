@@ -7,7 +7,7 @@ import threading
 import datetime, time
 
 helpers = helper()
-
+bypass_backend = False
 app = Flask(__name__)
 satellite_id = 0
 gs_id = 0
@@ -41,12 +41,13 @@ def home():
             priority = request.form.get('priority-manual')
             data['groundstation_id'] = groundstation_id
             data['priority'] = priority
-            #helpers.data_tunnel(data)
+            if not bypass_backend:
+                helpers.data_tunnel(data)
             helpers.open_tunnel(gs_id)
-            #print(data)
+            print(data) 
             new_dict = {"process": "START"}
             helpers.send_commands(command=new_dict)
-            sleep(5)
+            sleep(3)
             return render_template('manual/manual.html')
         
         elif tracking_mode == 'AUTOTRACKING':
@@ -54,8 +55,9 @@ def home():
             priority = request.form.get('priority-auto')
             data['satellite_id'] = satellite_id
             data['priority'] = priority
-            #print(f"AT data {data}")
-            gs_id = helpers.data_tunnel(data)
+            print(f"AT data {data}")
+            if not bypass_backend:
+                gs_id = helpers.data_tunnel(data)
             
             print(f"GSid in app {gs_id}")
             # append selected groundstation to data
@@ -64,6 +66,25 @@ def home():
             helpers.open_tunnel(gs_id=gs_id)
             new_dict = {"process": "START"}
             helpers.send_commands(command=new_dict)
+            sleep(3)
+            return redirect(url_for('autotrack'))
+        elif tracking_mode == 'AUTOINPUT':
+            satellite_id = request.form.get('satellite-id_input')
+            priority = request.form.get('priority-autoinput')
+            data['satellite_id'] = satellite_id
+            data['priority'] = priority
+            print(f"AT data {data}")
+            if not bypass_backend:
+                gs_id = helpers.data_tunnel(data)
+            
+            print(f"GSid in app {gs_id}")
+            # append selected groundstation to data
+            data['gs_id'] = gs_id
+
+            helpers.open_tunnel(gs_id=gs_id)
+            new_dict = {"process": "START"}
+            helpers.send_commands(command=new_dict)
+            sleep(3)
             return redirect(url_for('autotrack'))
     return render_template('index.html')
 
@@ -94,10 +115,12 @@ def manual():
 
 @app.route('/autotrack', methods=['GET', 'POST'])
 def autotrack():
-    checklock_thread = threading.Thread(target=helpers.check_notrack, args=(satellite_id, gs_id,))
-    checklock_thread.start()
+    if not bypass_backend:
+        checklock_thread = threading.Thread(target=helpers.check_notrack, args=(satellite_id, gs_id,))
+        checklock_thread.start()
     helpers.send_auto_command(satellite_id, gs_id)
-    return render_template('autotrack/autotrack.html', satellite_name=satellite_id)
+    start, stop = helpers.get_timestamps_for_satID(satellite_id)
+    return render_template('autotrack/autotrack.html', satellite_name=satellite_id,satellite_start=start,satellite_stop=stop)
 
 
 import json
@@ -145,5 +168,3 @@ if __name__ == '__main__':
         app.run(host='0.0.0.0', port=50005, debug=True, use_reloader=False)
     finally:
         helpers.close_connection()
-        cap.stop()
-        cv2.destroyAllWindows()

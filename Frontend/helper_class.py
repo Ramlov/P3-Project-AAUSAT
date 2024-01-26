@@ -4,6 +4,7 @@ import time
 import socket
 import threading
 import requests
+import datetime
 from time import sleep
 
 class helper:
@@ -16,6 +17,7 @@ class helper:
         self.sock = None
         self.BUFFER_SIZE = 1024
         self.FORMAT = 'utf-8'
+        self.entry = None
 
     def data_tunnel(self, data):
         print(data)
@@ -23,11 +25,11 @@ class helper:
         prio = data['priority']
 
         if tracking_mode == "MANUAL":
-            user = "Dinmor"
+            user = "Manual1"
             method = 3
             sat_id = data['groundstation_id']
         elif tracking_mode == "AUTOTRACKING":
-            user = "Dinfar"
+            user = "Auto1"
             method = 2
             sat_id = data['satellite_id']
 
@@ -37,10 +39,10 @@ class helper:
         # Collecting latest entry from queue table, to be able to identify it in the GS table
         query = (f"SELECT Entry FROM Queue_Table WHERE User = %s ORDER BY Entry DESC LIMIT 1")
         self.db_cur.execute(query, (user,))
-        entry = self.db_cur.fetchone()[0]
-        print(entry)
+        self.entry = self.db_cur.fetchone()[0]
+        print(f'Position in queue: {self.entry}')
 
-        gs_id = self.check_available(sat_id, entry)
+        gs_id = self.check_available(sat_id, self.entry)
         print(f"GSID in datatunnel: {gs_id}")
 
         return gs_id
@@ -55,7 +57,11 @@ class helper:
                 result = self.db_cur.fetchall()
             except:
                 result = None
-            print(result)
+            print(f'Current task at selected GS: {result[0][1]}')
+            try:
+                print(f'Task(s) in front of you: {(entry-result[0][1])}')
+            except:
+                print(f'None Type')
             
             for gs in result:
                 if entry == gs[1]:
@@ -83,13 +89,9 @@ class helper:
             # Creating socket 
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # ipv4 address & TCP socket
             gs_address = "172.26.12.59"
-            port = 13447
+            port = 13446
             self.sock.connect((gs_address, port))
-            #self.sock.connect()
             print(self.sock)
-
-            # receive_thread = threading.Thread(target= self.receive_response(), args=())
-            # receive_thread.start()
 
         except ConnectionRefusedError:
             print(f"Connection to Ground station address: {gs_address} | Port: {port} -> refused")
@@ -97,7 +99,6 @@ class helper:
     def send_commands(self, command):
         operation = []
         responses = []
-
         for key, value in command.items():
             if key == "el":
                 key = key.upper()
@@ -108,17 +109,7 @@ class helper:
             elif value == "STOP":
                 operation.append(value)
                 self.remove_task_from_db()
-                # sql = "UPDATE GS_Table SET Entry = NULL, Sat_ID = NULL, Method = NULL, Pass_Start = NULL, Pass_End = NULL WHERE GS_ID = 1"
-                # self.db_cur.execute(sql)
-                # self.database.commit()
-                # try:
-                #     with self.database.cursor() as cursor:
-                #         sql = "DELETE FROM GS_Table WHERE GS_ID = 1"
-                #         cursor.execute(sql)
-                #         self.database.commit()
 
-                # finally:
-                #     self.database.close()
             else:
                 operation.append(value)
         for item in operation:
@@ -130,7 +121,7 @@ class helper:
         return(responses)
         
     def send_auto_command(self, satellite_id, gs_id):
-            sleep(5)
+            sleep(2)
             AT_command = "AT" + str(satellite_id)
             print(AT_command)
             self.sock.send(AT_command.encode(self.FORMAT))
@@ -140,7 +131,7 @@ class helper:
         lock_on = False
         
         while True:
-            sleep(6)
+            sleep(2)
             query = f"SELECT Dump FROM Dump_Table WHERE GS_ID = {gs_id} ORDER BY Log_ID DESC"
             self.db_cur.execute(query)
             response = self.db_cur.fetchone()
@@ -153,11 +144,10 @@ class helper:
                     print(f"[LOCK ON]: Currently tracking {satellite_id}")
                     lock_on = True
 
-                elif response[0] == "SATELLITE-BELOW-HORIZON":
-                    if lock_on == True:
-                        print("Autotrack done")
-                        self.remove_task_from_db()
-                        return False
+                elif response[0] == "SATELLITE-BELOW-HORIZON" and lock_on == True:
+                    print("Autotrack done")
+                    self.remove_task_from_db()
+                    return False
 
                 elif response[0] == "OK - LOCK_ON: False":
                     print(f"[LOCK OFF]: Not tracking {satellite_id}")
@@ -175,13 +165,19 @@ class helper:
         self.database.commit()
     
     def get_timestamps_for_satID(self, sat_id):
-        query = "SELECT (Pass_Start, Pass_Stop) FROM GS_Table WHERE GS_ID = %s"
+        query = "SELECT Pass_Start, Pass_End FROM GS_Table WHERE Sat_ID = %s"
         self.db_cur.execute(query, (sat_id,))
         try:
-            result_start = self.db_cur.fetchone()[0]
-            result_stop = self.db_cur.fetchone()[0]
-        except:
-            result_start, result_stop = None
+            result = self.db_cur.fetchone()
+            result_start = result[0] if result else None
+            result_stop = result[1] if result else None
+        except Exception as e:
+            print(f"Error fetching timestamps: {e}")
+            result_start, result_stop = None, None
         print("Pass Start:", result_start)
         print("Pass Stop:", result_stop)
+        print(type(result_start))
+
         self.database.commit()
+        return result_start, result_stop
+
