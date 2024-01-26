@@ -1,25 +1,19 @@
-from flask import Flask, render_template, request, redirect, send_from_directory, jsonify, url_for, Response
+from flask import Flask, render_template, request, redirect, send_from_directory, jsonify, url_for, Response, session
 from helper_class import helper
 import os
 from time import sleep
 import re
 import threading
-import datetime, time
+import pymysql
 
 helpers = helper()
 bypass_backend = False
 app = Flask(__name__)
 satellite_id = 0
 gs_id = 0
-
+app.secret_key = "hejjohnni"
 sleep(1)
-#sat_list = satApi.get_satellites_list()
-#satellite_name = [sat_list]
-#print(satellite_name)
 
-# with open('../config.json', 'r') as file:
-#     config = load(file)
-# db_name = config["database"]["db_name"]
 
 @app.route('/favicon.ico')
 def favicon():
@@ -30,64 +24,7 @@ def favicon():
 
 @app.route('/', methods=['GET', 'POST'])
 def home():
-    global satellite_id
-    global gs_id
-    if request.method == 'POST':
-        tracking_mode = request.form.get('tracking-mode')
-        data = {'tracking_mode': tracking_mode}
-
-        if tracking_mode == 'MANUAL':
-            groundstation_id = request.form.get('groundstation-id')
-            priority = request.form.get('priority-manual')
-            data['groundstation_id'] = groundstation_id
-            data['priority'] = priority
-            if not bypass_backend:
-                helpers.data_tunnel(data)
-            helpers.open_tunnel(gs_id)
-            print(data) 
-            new_dict = {"process": "START"}
-            helpers.send_commands(command=new_dict)
-            sleep(3)
-            return render_template('manual/manual.html')
-        
-        elif tracking_mode == 'AUTOTRACKING':
-            satellite_id = request.form.get('satellite-id')
-            priority = request.form.get('priority-auto')
-            data['satellite_id'] = satellite_id
-            data['priority'] = priority
-            print(f"AT data {data}")
-            if not bypass_backend:
-                gs_id = helpers.data_tunnel(data)
-            
-            print(f"GSid in app {gs_id}")
-            # append selected groundstation to data
-            data['gs_id'] = gs_id
-
-            helpers.open_tunnel(gs_id=gs_id)
-            new_dict = {"process": "START"}
-            helpers.send_commands(command=new_dict)
-            sleep(3)
-            return redirect(url_for('autotrack'))
-        elif tracking_mode == 'AUTOINPUT':
-            satellite_id = request.form.get('satellite-id_input')
-            priority = request.form.get('priority-autoinput')
-            data['satellite_id'] = satellite_id
-            data['priority'] = priority
-            print(f"AT data {data}")
-            if not bypass_backend:
-                gs_id = helpers.data_tunnel(data)
-            
-            print(f"GSid in app {gs_id}")
-            # append selected groundstation to data
-            data['gs_id'] = gs_id
-
-            helpers.open_tunnel(gs_id=gs_id)
-            new_dict = {"process": "START"}
-            helpers.send_commands(command=new_dict)
-            sleep(3)
-            return redirect(url_for('autotrack'))
     return render_template('index.html')
-
 
 @app.route('/webcam', methods=['GET', 'POST'])
 def webcam():
@@ -98,13 +35,59 @@ def stop_queue():
     print("Stopping queue - NOT WORKING!")
     return render_template('/')
 
+@app.route('/start-check', methods=['POST'])
+def start_check():
+    data = request.json
+    print(data)
+    entry, prio, tracking_mode, sat_id = helpers.data_tunnel(data)
+    session['entry'] = entry
+    session['prio'] = prio
+    session['tracking_mode'] = tracking_mode
+    session['sat_id'] = sat_id
+    return jsonify({
+        'status': 'checking started',
+        'entry': entry,
+        'prio': prio,
+        'tracking_mode': tracking_mode,
+        'sat_id': sat_id
+    })
+
+@app.route('/check-status', methods=['GET'])
+def check_status():
+    entry = request.args.get('entry', type=int)
+    gs_id, current_task_at_gs, tasks_in_front = helpers.check_available(entry)
+
+    if gs_id is not None:
+
+        helpers.open_tunnel(gs_id=gs_id)
+        session['redirect_to_autotrack'] = True
+        return jsonify({'conditionMet': True})
+
+    return jsonify({
+        'conditionMet': False,
+        'current_task_at_gs': current_task_at_gs,
+        'place_in_queue': entry,
+        'tasks_in_front': tasks_in_front
+    })
+
+@app.route('/mathinew', methods=['GET', 'POST'])
+def mathinew():
+    trackingmode = session.get('tracking_mode')
+    print(trackingmode)
+    if trackingmode == 'MANUAL':
+        return redirect(url_for('manual'))
+    elif trackingmode == 'AUTOTRACKING' or trackingmode == 'AUTOINPUT':
+        return redirect(url_for('autotrack'))
+    else:
+        return redirect(url_for(''))
 
 @app.route('/manual', methods=['GET', 'POST'])
 def manual():
+    new_dict = {"process": "START"}
+    helpers.send_commands(command=new_dict)
+    sleep(3)
     try:
         if request.method == 'POST':
-            # tracking_mode = request.form.get('tracking-mode')
-            # data = {'tracking_mode': tracking_mode}
             data = request.get_json()
             data = {key: value for key, value in data.items() if value != ''}
             response = helpers.send_commands(command=data)
@@ -115,21 +98,25 @@ def manual():
 
 @app.route('/autotrack', methods=['GET', 'POST'])
 def autotrack():
+    sat_id = session.get('sat_id')
     if not bypass_backend:
-        checklock_thread = threading.Thread(target=helpers.check_notrack, args=(satellite_id, gs_id,))
-        checklock_thread.start()
-    helpers.send_auto_command(satellite_id, gs_id)
-    start, stop = helpers.get_timestamps_for_satID(satellite_id)
-    return render_template('autotrack/autotrack.html', satellite_name=satellite_id,satellite_start=start,satellite_stop=stop)
-
-
-import json
+        pass
+        try:
+            checklock_thread = threading.Thread(target=helpers.check_notrack, args=(sat_id, gs_id,))
+            checklock_thread.start()
+        except:
+            pass
+    new_dict = {"process": "START"}
+    helpers.send_commands(command=new_dict)
+    sleep(3)
+    helpers.send_auto_command(sat_id)
+    start, stop = helpers.get_timestamps_for_satID(sat_id)
+    return render_template('autotrack/autotrack.html', satellite_name=sat_id,satellite_start=start,satellite_stop=stop)
 
 @app.route('/get_orientation')
 def get_orientation():
     commanden = {'key': "PP"}
     response = helpers.send_commands(command=commanden)
-    #print(type(response))
     try:
         pattern = re.compile(r"'azimuth': (?P<azimuth>[\d.]+), 'elevation': (?P<elevation>[\d.]+)")
         match = pattern.search(response[0])
@@ -149,15 +136,41 @@ def get_orientation():
             elevation = 0
             return jsonify({'azimuth': azimuth, 'elevation': elevation})
 
+@app.route('/get-latest-status')
+def get_latest_status():
+    db_info = {
+        "host": "system-database.cwctijm9dz2w.eu-central-1.rds.amazonaws.com",
+        "user": "admin",
+        "password": "SunsetBeer",
+        "database": "gs_system_database",
+        "charset": "utf8mb4",
+        "cursorclass": pymysql.cursors.DictCursor
+    }
 
-def get_autotracking_info():
-    return {"status": "Active", "next_pass": "2023-11-15 15:30:00"}
+    try:
+        connection = pymysql.connect(**db_info)
 
-# Route to fetch autotracking information
-@app.route('/autotracking_info')
-def autotracking_info():
-    data = get_autotracking_info()
-    return jsonify(data)
+        with connection.cursor() as cursor:
+            sql = """
+            SELECT Dump 
+            FROM Dump_Table 
+            WHERE Dump != 'RPI_TIME' 
+            ORDER BY Log_ID DESC 
+            LIMIT 1
+            """
+            cursor.execute(sql)
+            result = cursor.fetchone()
+            status = result['Dump'] if result else 'No status available'
+
+        return jsonify({"status": status})
+
+    except Exception as e:
+        print(f"Database query failed: {e}")
+        return jsonify({"status": "Error fetching status"})
+
+    finally:
+        if connection:
+            connection.close()
 
 
 

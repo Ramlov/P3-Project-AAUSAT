@@ -4,7 +4,6 @@ import time
 import socket
 import threading
 import requests
-import datetime
 from time import sleep
 
 class helper:
@@ -27,8 +26,12 @@ class helper:
         if tracking_mode == "MANUAL":
             user = "Manual1"
             method = 3
-            sat_id = data['groundstation_id']
+            sat_id = 1
         elif tracking_mode == "AUTOTRACKING":
+            user = "Auto1"
+            method = 2
+            sat_id = data['satellite_id']
+        elif tracking_mode == "AUTOINPUT":
             user = "Auto1"
             method = 2
             sat_id = data['satellite_id']
@@ -36,41 +39,55 @@ class helper:
         self.db_cur.execute(f'INSERT INTO Queue_Table (Sat_ID, User, Method, Prio) VALUES (%s, %s, %s, %s)', (sat_id, user, method, prio))
         self.database.commit()
         
-        # Collecting latest entry from queue table, to be able to identify it in the GS table
         query = (f"SELECT Entry FROM Queue_Table WHERE User = %s ORDER BY Entry DESC LIMIT 1")
         self.db_cur.execute(query, (user,))
         self.entry = self.db_cur.fetchone()[0]
         print(f'Position in queue: {self.entry}')
-
-        gs_id = self.check_available(sat_id, self.entry)
-        print(f"GSID in datatunnel: {gs_id}")
-
-        return gs_id
+        return(self.entry, prio, tracking_mode, sat_id)
 
 
-    def check_available(self, sat_id, entry):
-        while True:
-            time.sleep(2)
-            query = "SELECT GS_ID, Entry FROM GS_Table"
-            self.db_cur.execute(query)
-            try:
-                result = self.db_cur.fetchall()
-            except:
-                result = None
-            print(f'Current task at selected GS: {result[0][1]}')
-            try:
-                print(f'Task(s) in front of you: {(entry-result[0][1])}')
-            except:
-                print(f'None Type')
-            
-            for gs in result:
-                if entry == gs[1]:
-                    print("Open Tunnel")
-                    return gs[0]
-                
-            self.database.commit()
+    def check_available(self, entry):
+        if entry is None:
+            print("Entry is None. Cannot proceed.")
+            return None, None, None
 
-    
+        query = "SELECT GS_ID, Entry FROM GS_Table ORDER BY Entry ASC"
+        self.db_cur.execute(query)
+        
+        try:
+            result = self.db_cur.fetchall()
+        except Exception as e:
+            print(f"Error fetching results: {e}")
+            return None, None, None
+
+        if not result:
+            print("No results found in GS_Table.")
+            return None, None, None
+
+        current_task_at_selected_gs = None
+        tasks_in_front_of_you = None
+
+        for gs in result:
+            if gs[1] is not None:
+                current_task_at_selected_gs = gs[1]
+                break
+
+        if current_task_at_selected_gs is not None:
+            tasks_in_front_of_you = max(0, entry - current_task_at_selected_gs)
+            print(f'Current task at selected GS: {current_task_at_selected_gs}')
+            print(f'Task(s) in front of you: {tasks_in_front_of_you}')
+        else:
+            print("No valid current task found in GS_Table.")
+
+        for gs in result:
+            if gs[1] == entry:
+                print("Open Tunnel")
+                return gs[0], current_task_at_selected_gs, tasks_in_front_of_you
+
+        return None, current_task_at_selected_gs, tasks_in_front_of_you
+
+
+        
     def close_connection(self):
         self.db_cur.close()
         self.database.close()
@@ -87,7 +104,7 @@ class helper:
     def connect_to_groundstation(self, gs_address, port):
         try:
             # Creating socket 
-            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # ipv4 address & TCP socket
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             gs_address = "172.26.12.59"
             port = 13446
             self.sock.connect((gs_address, port))
@@ -120,10 +137,10 @@ class helper:
             responses.append(response)
         return(responses)
         
-    def send_auto_command(self, satellite_id, gs_id):
+    def send_auto_command(self, satellite_id):
             sleep(2)
             AT_command = "AT" + str(satellite_id)
-            print(AT_command)
+            print(AT_command, "Debug")
             self.sock.send(AT_command.encode(self.FORMAT))
     
     def check_notrack(self, satellite_id, gs_id):
@@ -136,8 +153,6 @@ class helper:
             self.db_cur.execute(query)
             response = self.db_cur.fetchone()
             self.database.commit()
-
-            print(response)
 
             if response:
                 if response[0] == "OK - LOCK_ON: True": 
