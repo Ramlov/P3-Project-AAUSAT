@@ -53,6 +53,7 @@
                     <option value="EZCOM2">MODE</option>
                     <option value="MANUAL">Manual</option>
                     <option value="AUTOTRACKING">Autotracking</option>
+                    <option value="AUTOINPUT">Autotracking - Manual SATID input</option>
                 </select>
             </div>
 
@@ -70,7 +71,10 @@
                     <option value="32953">YUBILEINY</option>
                     <option value="58472">EIRSAT-1</option>
                     <option value="47445">SOMP 2b</option>
+                    <option value="47964">SMOG 1</option>
+                    <option value="52899">SNUGLITE-II</option>
                     <option value="50988">Tevel-3</option>
+                    <option value="20442">LUSAT</option>
                     <option value="47438">UVSQ-SAT</option>
                     <option value="55098">BDSAT-2</option>
                 </select>
@@ -102,6 +106,22 @@
                     <option value="5">Very Low</option>
                 </select>
             </div>
+
+            <div id="autoinput-controls" class="control-group">
+                <p><i>Note: Please input NORAD ID of the satellite you want to track <br> Future passes over the AAU GS can be found <a href="https://network.satnogs.org/stations/207/">here</a></i></p>
+                <label for="satellite-id_input">Satellite ID:</label>
+                <input type="text" id="satellite-id_input" name="satellite-id_input" placeholder="Enter Satellite ID">
+
+                <label for="priority-autoinput">Priority:</label>
+                <select id="priority-autoinput" name="priority-autoinput">
+                    <option value="1">Urgent</option>
+                    <option value="2">High</option>
+                    <option value="3" selected>Normal</option>
+                    <option value="4">Low</option>
+                    <option value="5">Very Low</option>
+                </select>
+            </div>
+
 
             <div class="loading-container" id="loading-container">
                 <div class="loading-spinner"></div>

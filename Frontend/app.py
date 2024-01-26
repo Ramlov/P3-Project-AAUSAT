@@ -41,7 +41,7 @@ def home():
             priority = request.form.get('priority-manual')
             data['groundstation_id'] = groundstation_id
             data['priority'] = priority
-            helpers.data_tunnel(data)
+            #helpers.data_tunnel(data)
             helpers.open_tunnel(gs_id)
             print(data)
             new_dict = {"process": "START"}
@@ -55,7 +55,24 @@ def home():
             data['satellite_id'] = satellite_id
             data['priority'] = priority
             print(f"AT data {data}")
-            gs_id = helpers.data_tunnel(data)
+            #gs_id = helpers.data_tunnel(data)
+            
+            print(f"GSid in app {gs_id}")
+            # append selected groundstation to data
+            data['gs_id'] = gs_id
+
+            helpers.open_tunnel(gs_id=gs_id)
+            new_dict = {"process": "START"}
+            helpers.send_commands(command=new_dict)
+            sleep(3)
+            return redirect(url_for('autotrack'))
+        elif tracking_mode == 'AUTOINPUT':
+            satellite_id = request.form.get('satellite-id_input')
+            priority = request.form.get('priority-autoinput')
+            data['satellite_id'] = satellite_id
+            data['priority'] = priority
+            print(f"AT data {data}")
+            #gs_id = helpers.data_tunnel(data)
             
             print(f"GSid in app {gs_id}")
             # append selected groundstation to data
@@ -95,8 +112,8 @@ def manual():
 
 @app.route('/autotrack', methods=['GET', 'POST'])
 def autotrack():
-    checklock_thread = threading.Thread(target=helpers.check_notrack, args=(satellite_id, gs_id,))
-    checklock_thread.start()
+    #checklock_thread = threading.Thread(target=helpers.check_notrack, args=(satellite_id, gs_id,))
+    #checklock_thread.start()
     helpers.send_auto_command(satellite_id, gs_id)
     start, stop = helpers.get_timestamps_for_satID(satellite_id)
     return render_template('autotrack/autotrack.html', satellite_name=satellite_id,satellite_start=start,satellite_stop=stop)

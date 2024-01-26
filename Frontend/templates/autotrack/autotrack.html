@@ -69,51 +69,6 @@
   </div>
 
 
-  <script>
-    // Add a script to update the selected satellite
-    document.addEventListener("DOMContentLoaded", function () {
-      const selectedSatelliteDiv = document.getElementById("satellite-id");
-
-    // Get the selected satellite from the URL query parameters
-      const urlParams = new URLSearchParams(window.location.search);
-      const selectedSatellite = urlParams.get("satellite");
-
-    // Update the content of the selected-satellite-name span
-      selectedSatelliteDiv.textContent = selectedSatellite;
-
-    });
-    // autotrack.js
-
-document.addEventListener("DOMContentLoaded", function () {
-  // Function to update autotracking information
-  function updateAutotrackingInfo() {
-    // Make an AJAX call to the Flask backend endpoint
-    $.ajax({
-      type: "GET",
-      url: "/autotracking_info",
-      success: function (data) {
-        // Update the autotracking information on the page
-        updateInfo(data);
-      },
-      error: function (error) {
-        console.error("Error fetching autotracking information:", error);
-      },
-    });
-  }
-
-  // Function to update the displayed information on the page
-  function updateInfo(data) {
-    document.getElementById("status").innerText = data.status;
-    document.getElementById("next-pass").innerText = data.next_pass;
-  }
-  updateAutotrackingInfo();
-
-  setInterval(updateAutotrackingInfo, 3000);
-});
-
-  </script>
-
-</script>
 <script>
     var video = document.getElementById('videoPlayer');
     var videoSrc = 'http://aausat-roof1.space.aau.dk:8000/stream.m3u8';
