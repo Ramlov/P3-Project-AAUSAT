@@ -17,6 +17,7 @@ class helper:
         self.sock = None
         self.BUFFER_SIZE = 1024
         self.FORMAT = 'utf-8'
+        self.entry = None
 
     def data_tunnel(self, data):
         print(data)
@@ -38,10 +39,10 @@ class helper:
         # Collecting latest entry from queue table, to be able to identify it in the GS table
         query = (f"SELECT Entry FROM Queue_Table WHERE User = %s ORDER BY Entry DESC LIMIT 1")
         self.db_cur.execute(query, (user,))
-        entry = self.db_cur.fetchone()[0]
-        print(f'Position in queue: {entry}')
+        self.entry = self.db_cur.fetchone()[0]
+        print(f'Position in queue: {self.entry}')
 
-        gs_id = self.check_available(sat_id, entry)
+        gs_id = self.check_available(sat_id, self.entry)
         print(f"GSID in datatunnel: {gs_id}")
 
         return gs_id
@@ -57,7 +58,10 @@ class helper:
             except:
                 result = None
             print(f'Current task at selected GS: {result[0][1]}')
-            print(f'Task(s) in front of you: {(entry-result[0][1])}')
+            try:
+                print(f'Task(s) in front of you: {(entry-result[0][1])}')
+            except:
+                print(f'None Type')
             
             for gs in result:
                 if entry == gs[1]:
