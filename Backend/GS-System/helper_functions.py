@@ -16,7 +16,8 @@ def watch_manual(database: pymysql.Connection, best_match):
     log = 0
     valid_log = None
     GS_ID = best_match[0]
-    keywords_to_check = ['PP_OK', 'azimuth', 'elevation', 'PP_WAIT']
+    keywords_to_ignore = ['PP_OK', 'azimuth', 'elevation', 'PP_WAIT']
+    watchdog_time = 20 # The allowing the User to do stuff without being kicked in seconds
 
     task_id = execute_query(database=database, sql=f"SELECT Entry FROM GS_Table WHERE GS_ID = {GS_ID}")
 
@@ -32,13 +33,13 @@ def watch_manual(database: pymysql.Connection, best_match):
 
             print(f"new logs: {new_logs}")
             for new_log in new_logs:
-                keyword_found = False  # Initialize the flag for each entry
-                for keyword in keywords_to_check:
-                    if keyword in new_log[1]:
-                        keyword_found = True
+                ignorekey_found = False  # Initialize the flag for each entry
+                for ignorekey in keywords_to_ignore:
+                    if ignorekey in new_log[1]:
+                        ignorekey_found = True
                         break
 
-                if not keyword_found:
+                if not ignorekey_found:
                     print(f"Valid Entry Detected: {new_log}")
                     valid_log = new_log[0]
                     break
@@ -57,7 +58,7 @@ def watch_manual(database: pymysql.Connection, best_match):
             print("New Task assigned to GS...")
             break
 
-        time.sleep(300) # Await5 minutes
+        time.sleep(watchdog_time)
     
     print(f"Exiting Watchdog for {GS_ID}")
 
@@ -98,7 +99,7 @@ def gs_trajectory_match(database: pymysql.Connection, sat_id: int, gs_list: list
     # Declare Variables    
     MIN_LOS_TIME = 60   # seconds
     LOS_DEGS = 6        # degrees
-    T_delta = 1/24      # days to look into the future
+    T_delta = 60/24      # hours to look into the future
 
     # save best pass' start and end. Return these values when done
     best_gs = None
@@ -115,7 +116,7 @@ def gs_trajectory_match(database: pymysql.Connection, sat_id: int, gs_list: list
             # Make a Ground Station object
             GS = Topos(latitude_degrees=GS_lat, longitude_degrees=GS_lon, elevation_m=GS_alt)
 
-            # Calculate the next pass - check 8 hours (1/3 days) into the future
+            # Calculate the next pass - check 1 hour (1/24 days) into the future
             t = ts.now()
             times, events = satellite.find_events(GS, t, t + timedelta(days = T_delta), altitude_degrees=LOS_DEGS)
 
@@ -175,10 +176,11 @@ def gs_sel_algorithm(database: pymysql.Connection):
                         # Start Thread that Watches the Manual Task in case user closes connection
                         threading.Thread(target=watch_manual, args=(database, best_match)).start()
 
-                        break
+                        # Add Start time to manual control of groundstation
+                        pass_start, pass_stop = time.time(), time.time()
 
-                pass_start = time.time()
-                pass_stop = pass_start
+                        break
+                
                 
             else:
                 # Last option, no new entries of newly available GSs, therefore no reason to check.
@@ -189,126 +191,22 @@ def gs_sel_algorithm(database: pymysql.Connection):
                 # Remove the gs from gs_list:
                 print(f"Best Match: {best_match} to Entry {entry[0]}")
                 gs_list.remove(best_match)
+                
+                print(f"Pass Start: {pass_start}, Pass Stop: {pass_stop}")
+                
+                # Convert To Actual Dates
+                datetime_start = datetime.fromtimestamp(pass_start).strftime('%Y-%m-%d %H:%M:%S')
+                datetime_stop = datetime.fromtimestamp(pass_stop).strftime('%Y-%m-%d %H:%M:%S')
+
+                print(f"Datatimestart: {datetime_start}, datetime Stop: {datetime_stop}")
 
                 # Move Entry to the correct GS and copy info to Log
                 execute_query(database=database, 
-                                sql=f"UPDATE GS_Table SET Entry = (SELECT Entry FROM Queue_Table WHERE Entry = {entry[0]}), Sat_ID = (SELECT Sat_ID FROM Queue_Table WHERE Entry = {entry[0]}), Method = (SELECT Method FROM Queue_Table WHERE Entry = {entry[0]}), Pass_Start = {pass_start}, Pass_End = {pass_stop} WHERE GS_ID = {best_match[0]};") #Best_match[0] is GS_ID
-                execute_query(database=database, sql=f"INSERT INTO Log_Table (User, Sat_ID, GS_ID, Pass_Start, Pass_End) SELECT User, Sat_ID, {best_match[0]}, {pass_start}, {pass_stop} FROM Queue_Table WHERE Entry={entry[0]};")
+                                sql=f"UPDATE GS_Table SET Entry = (SELECT Entry FROM Queue_Table WHERE Entry = {entry[0]}), Sat_ID = (SELECT Sat_ID FROM Queue_Table WHERE Entry = {entry[0]}), Method = (SELECT Method FROM Queue_Table WHERE Entry = {entry[0]}), Pass_Start = '{datetime_start}', Pass_End = '{datetime_stop}' WHERE GS_ID = {best_match[0]};") #Best_match[0] is GS_ID
+                execute_query(database=database, sql=f"INSERT INTO Log_Table (User, Sat_ID, GS_ID, Pass_Start, Pass_End) SELECT User, Sat_ID, {best_match[0]}, '{datetime_start}', '{datetime_stop}' FROM Queue_Table WHERE Entry={entry[0]};")
 
                 # Clear Entry from Queue
                 execute_query(database=database, sql=f"DELETE FROM Queue_Table WHERE Entry={entry[0]}")
-
-
-def old_gs_sel_algorithm(database: pymysql.Connection, new_entries: list, gs_list: list):
-    # Declare Temp variables
-    gs_new: list = [] # Holds the newly available groundstations
-
-    # Get GS_Table Data
-    results_gs = execute_query(database=database, sql="SELECT GS_ID, Coords, Entry FROM GS_Table ORDER BY GS_ID ASC;")
-    results_queue = execute_query(database=database, sql="SELECT Entry, Method, Sat_ID FROM Queue_Table ORDER BY Pos ASC;")
-
-
-    if results_gs: # If any gs exist on the database
-
-        # Check if there are newly available GS's
-        for GS in results_gs:
-            if GS[2] is None and GS not in gs_list: # If the GS has no task and not previously checked, append to gs_new
-                    gs_new.append(GS)
-
-        # If an available GS exists
-        if len(gs_list) > 0 or len(gs_new) > 0:
-            
-            if len(new_entries) > 0 and len(gs_new) == 0:
-                # Only check new entries with available Groundstations
-                for entry in new_entries:
-                    #print(f"Checking entry: {entry}")
-                    # Create Variable
-                    best_match = None
-                    if len(gs_list) > 0 and entry[1] != 3: # The length of the list can become 0 if a GS becomes occupied by previous entry. The second part checks the method attached (not manual)
-                        best_match, pass_start, pass_stop = gs_trajectory_match(database=database, entry=entry[0], gs_list=gs_list)
-                        #print(f"Best Match: {best_match}")
-                        #print(f"GS List: {gs_list}")
-                    
-                    elif len(gs_list) > 0:
-                        #print(f"Manual Connection Requested entry = {entry}")
-                        # Allocate The manual task to the correct GS if Available. First get the GS_ID
-                        GS_ID = execute_query(database=database, sql=f"SELECT Sat_ID FROM Queue_Table WHERE Entry = {entry[0]};")[0][0]
-
-                        # If the Groundstation is still in the GS list, then we reserve it
-                        for GS in gs_list:
-                            if GS_ID == GS[0]:
-                                best_match = GS
-
-                                # Start Thread that Watches the Manual Task in case user closes connection
-                                threading.Thread(target=watch_manual, args=(database, best_match)).start()
-
-                                break
-
-                        pass_start = time.time()
-                        pass_stop = pass_start
-                    
-                    else:
-                        break
-
-                    if best_match:
-                        # Remove the gs from gs_list:
-                        gs_list.remove(best_match)
-
-                        # Move Entry to the correct GS and copy info to Log
-                        execute_query(database=database, 
-                                      sql=f"UPDATE GS_Table SET Entry = (SELECT Entry FROM Queue_Table WHERE Entry = {entry}), Sat_ID = (SELECT Sat_ID FROM Queue_Table WHERE Entry = {entry}), Method = (SELECT Method FROM Queue_Table WHERE Entry = {entry}), Pass_Start = {pass_start} WHERE GS_ID = {best_match[0]};") #Best_match[0] is GS_ID
-                        execute_query(database=database, sql=f"INSERT INTO Log_Table (User, Sat_ID, GS_ID, Pass_Start) SELECT User, Sat_ID, {best_match[0]}, {pass_start} FROM Queue_Table WHERE Entry={entry};")
-
-                        # Clear Entry from Queue
-                        execute_query(database=database, sql=f"DELETE FROM Queue_Table WHERE Entry={entry}")
-
-
-            elif len(gs_new) > 0:
-                # Add the new Gs to old gs
-                gs_list.extend(gs_new)
-
-                # Check queue with newly available Groundstations
-                for entry in results_queue:
-                    #print(f"Checking entry: {entry}")
-                    # Best Match variable reset
-                    best_match = None
-
-                    if len(gs_list) > 0 and entry[1] != 3:
-                        best_match, pass_start, pass_stop = gs_trajectory_match(database=database, entry=entry[0], gs_list=gs_list)
-                        #print(f"Best Match: {best_match}")
-                        #print(f"GS List: {gs_list}")
-                    
-                    elif len(gs_list) > 0:
-                        #print(f"Manual Connection Requested entry = {entry}")
-                        # Allocate The manual task to the correct GS if Available. First get the GS_ID
-                        GS_ID = execute_query(database=database, sql=f"SELECT Sat_ID FROM Queue_Table WHERE Entry = {entry[0]};")[0][0]
-
-                        # If the Groundstation is still in the GS list, then we reserve it
-                        for GS in gs_list:
-                            if GS_ID == GS[0]:
-                                best_match = GS
-                                break
-
-                        pass_start = time.time()
-
-                    else:
-                        break
-
-                    if best_match:
-                        gs_list.remove(best_match)
-
-                        # Move Entry to the correct GS and copy info to Log
-                        execute_query(database=database, 
-                                      sql=f"UPDATE GS_Table SET Entry = (SELECT Entry FROM Queue_Table WHERE Entry = {entry[0]}), Sat_ID = (SELECT Sat_ID FROM Queue_Table WHERE Entry = {entry[0]}), Method = (SELECT Method FROM Queue_Table WHERE Entry = {entry[0]}), Pass_Start = {pass_start} WHERE GS_ID = {best_match[0]};") #Best_match[0] is GS_ID
-                        execute_query(database=database, sql=f"INSERT INTO Log_Table (User, Sat_ID, GS_ID, Pass_Start) SELECT User, Sat_ID, {best_match[0]}, {pass_start} FROM Queue_Table WHERE Entry={entry[0]};")
-                        
-                        # Clear Entry from Queue
-                        execute_query(database=database, sql=f"DELETE FROM Queue_Table WHERE Entry={entry[0]}")
-            else:
-                # Last option, no new entries of newly available GSs, therefore no reason to check.
-                print("No available Entry ---> GS matching options")
-
-    return gs_list
 
 
 def queue_controller(database: pymysql.Connection):
@@ -352,14 +250,15 @@ def db_setup(database: pymysql.Connection):
         execute_query(database=database, sql="CREATE TABLE Queue_Table (Entry INT AUTO_INCREMENT PRIMARY KEY, Sat_ID INT, User VARCHAR(255), Method INT, Prio INT, Pos INT);")
 
         # Create GS-Table
-        execute_query(database=database, sql="CREATE TABLE GS_Table (GS_ID INT PRIMARY KEY, GS_Name VARCHAR(255), Coords VARCHAR(255), IP VARCHAR(45), Entry INT, Sat_ID INT, Method INT, Pass_Start FLOAT, Pass_End FLOAT);") # Coords are 'long, lat, alt'
+        execute_query(database=database, sql="CREATE TABLE GS_Table (GS_ID INT PRIMARY KEY, GS_Name VARCHAR(255), Coords VARCHAR(255), IP VARCHAR(45), Entry INT, Sat_ID INT, Method INT, Pass_Start VARCHAR(255), Pass_End VARCHAR(255));") # Coords are 'long, lat, alt'
 
         # Create Log_Table
-        execute_query(database=database, sql="CREATE TABLE Log_Table (Log_ID INT AUTO_INCREMENT PRIMARY KEY, Sat_ID INT, User VARCHAR(255), Method INT, GS_ID INT, Pass_Start FLOAT, Pass_End FLOAT);")
+        execute_query(database=database, sql="CREATE TABLE Log_Table (Log_ID INT AUTO_INCREMENT PRIMARY KEY, Sat_ID INT, User VARCHAR(255), Method INT, GS_ID INT, Pass_Start VARCHAR(255), Pass_End VARCHAR(255));")
 
         # Create Log_Table
         execute_query(database=database, sql="CREATE TABLE Dump_Table (Log_ID INT AUTO_INCREMENT PRIMARY KEY, GS_ID INT, Dump VARCHAR(1000));")
 
+        execute_query(database=database, sql="INSERT INTO GS_Table (GS_ID, GS_Name, Coords, IP, Entry, Sat_ID, Method, Pass_Start, Pass_End) VALUES (1, 'AAU GS', '57.0139449, 9.9875578, 21.0', NULL, NULL, NULL, NULL, NULL, NULL);")
         return ("Tables Created")
 
     except Exception as e:
