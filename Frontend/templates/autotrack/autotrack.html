@@ -31,6 +31,36 @@
       border-radius: 5px;
       overflow-x: auto;
     }
+    .satellite-info {
+  width: 100%; /* Ensures the container takes the full width */
+}
+
+.satellite-info table {
+  width: 25%; /* Auto width based on content */
+  max-width: 600px; /* Maximum width of the table */
+  border-collapse: collapse;
+  margin: 0; /* Removes default margin */
+}
+
+.satellite-info th {
+  background-color: #004A99;
+  color: white;
+  text-align: left;
+  padding: 8px;
+}
+
+.satellite-info td {
+  padding: 8px;
+  border-bottom: 1px solid #ddd;
+}
+
+.info-label {
+  font-weight: bold;
+}
+
+.info-value {
+  text-align: right;
+}
   </style>
 </head>
 
@@ -47,21 +77,24 @@
   <div class="mission-control">
     <h1>Autotracking</h1>
     <h2> Tracking </h2>
-    <div class="selected-satellite" id="selected-satellite">
-      <!-- Display the selected satellite here -->
-      Selected Satellite: {{ satellite_name }}
-    </div>
-    <div class="info-item">
-      <span class="info-label">Status:</span>
-      <span class="info-value" id="status">Loading...</span>
-    </div>
-    <div class="info-item">
-      <span class="info-label">Next Pass Start:</span>
-      <span class="info-value" id="next-pass"> {{ satellite_start }}</span>
-    </div>
-    <div class="info-item">
-      <span class="info-label">Next Pass Stop:</span>
-      <span class="info-value" id="next-pass"> {{ satellite_stop }}</span>
+    <div class="satellite-info">
+      <table>
+        <tr>
+          <th colspan="2" id="selected-satellite">Selected Satellite: {{ satellite_name }}</th>
+        </tr>
+        <tr>
+          <td class="info-label">Status:</td>
+          <td class="info-value" id="status">Loading...</td>
+        </tr>
+        <tr>
+          <td class="info-label">Next Pass Start:</td>
+          <td class="info-value" id="next-pass-start">{{ satellite_start }}</td>
+        </tr>
+        <tr>
+          <td class="info-label">Next Pass Stop:</td>
+          <td class="info-value" id="next-pass-stop">{{ satellite_stop }}</td>
+        </tr>
+      </table>
     </div>
     <div class="video-container">
       <video id="videoPlayer" controls autoplay></video>
