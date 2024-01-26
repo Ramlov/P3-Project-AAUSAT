@@ -87,6 +87,22 @@
             video.play();
         });
     }
+
+    function fetchStatus() {
+        fetch('/get-latest-status')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('status').textContent = data.status;
+            })
+            .catch(error => console.error('Error fetching status:', error));
+    }
+
+    // Fetch status every 5 seconds
+    setInterval(fetchStatus, 5000);
+
+    // Fetch status immediately on page load
+    fetchStatus();
+
 </script>
 
 </body>

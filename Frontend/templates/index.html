@@ -7,6 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles/style.css') }}">
     <link rel="icon" href="{{ url_for('favicon') }}" type="image/x-icon">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 
     <style>
         /* Add your styles here */
@@ -126,10 +127,17 @@
             <div class="loading-container" id="loading-container">
                 <div class="loading-spinner"></div>
                 <p>Waiting on queue...</p>
+                <div>
+                    <p id="currentTask">Current task at selected GS:</p>
+                    <p id="placeinqueue">Your task ID:</p>
+                    <p id="tasksInFront">Your position in the queue: </p>
+                </div>
                 <button id="stop-queue" type="button" onclick="stopQueue()">Stop Queue</button>
+
             </div>
 
-            <button id="start-tracking" type="submit">Start Tracking</button>
+            <button id="start-tracking" type="button" onclick="startQueueCheck()">Start Tracking</button>
+
         </form>
      
     </div>
@@ -141,11 +149,73 @@
     <script src="/static/script.js"></script>
 
     <script>
+function startQueueCheck() {
+    var trackingMode = document.getElementById('tracking-mode').value;
+    var priority;
+    var satelliteId;
+
+    if (trackingMode === 'AUTOINPUT') {
+        satelliteId = document.getElementById('satellite-id_input').value;
+        priority = document.getElementById('priority-autoinput').value;
+    } else if (trackingMode === 'AUTOTRACKING') {
+        satelliteId = document.getElementById('satellite-id').value;
+        priority = document.getElementById('priority-auto').value;
+    } else if (trackingMode === 'MANUAL') {
+        satelliteId = 'MANUAL';
+        priority = document.getElementById('priority-manual').value;
+    } else {
+        satelliteId = 'DEFAULT';
+        priority = 'DEFAULT';
+    }
+
+    var data = {
+        tracking_mode: trackingMode,
+        satellite_id: satelliteId,
+        priority: priority
+    };
+
+    $.ajax({
+        url: '/start-check',
+        type: 'POST',
+        contentType: "application/json",
+        data: JSON.stringify(data),
+        success: function(response) {
+            console.log(response.status);
+            showLoading();
+            var entry = response.entry; 
+            pollStatus(entry);
+        }
+    });
+}
+
+function pollStatus(entry) {
+    $.ajax({
+        url: '/check-status',
+        type: 'GET',
+        data: { entry: entry },
+        success: function(response) {
+            document.getElementById('currentTask').innerText = 'Current task being executed: ' + response.current_task_at_gs;
+            document.getElementById('placeinqueue').innerText = 'Your task ID: ' + response.place_in_queue;
+            document.getElementById('tasksInFront').innerText = 'Your position in the queue: ' + response.tasks_in_front;
+
+            if (response.conditionMet) {
+                window.location.href = '/mathinew';
+            } else {
+                setTimeout(function() { pollStatus(entry); }, 2000);
+            }
+        },
+        error: function(error) {
+            console.log("Error polling status:", error);
+        }
+    });
+}
+
+
+
         function showLoading() {
             document.getElementById("loading-container").style.display = "block";
         }
         function stopQueue() {
-            // Make a POST request to stop the queue
             $.ajax({
                 type: "POST",
                 url: "/stop_queue",
