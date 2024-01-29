@@ -197,14 +197,17 @@ def send_user_commands():
 current_client = None  # Variable to store the current connected client
 
 def handle_client(client_socket):
-    current_client = None
+    global current_client
     global send_thread_running
     send_thread_running = False
-    GPIO.output(control_pin, GPIO.LOW)
     sleep(1)
 
     # Set the current client to the new client
     current_client = client_socket
+
+    # Add the client to the list of connected clients
+    connected_clients.append(client_socket)
+    print(connected_clients)
     # Restart the send_thread if it's not running
     send_thread_running = True
     send_thread = threading.Thread(target=read_and_print_output, args=(client_socket,))
@@ -215,19 +218,26 @@ def handle_client(client_socket):
             data = current_client.recv(1024)  # Use current_client instead of client_socket
             if not data:
                 print("Client disconnected.")
+                GPIO.output(control_pin, GPIO.LOW)
                 break  # Break out of the loop if the client disconnects
             if data.decode() == "START":
                 print("STARTING")
                 GPIO.output(control_pin, GPIO.HIGH)
             elif data.decode() == "STOP":
+                print("sleeping for stop")
+                sleep(3)
                 print("STOPPGINASIDNASOIDJNAS")
                 GPIO.output(control_pin, GPIO.LOW)
             else:
                 print(data)
                 ser.write(data + b'\n')
                 if data.decode() == "VE":
-                    client.send(version.encode())
+                    # Send version to all connected clients
+                    for client in connected_clients:
+                        client.send(version.encode())
         except ConnectionResetError:
+            GPIO.output(control_pin, GPIO.LOW)
+            sleep(2)
             print("Client connection reset by peer.")
             send_thread_running = False
             break  # Break out of the loop if there's a connection reset
@@ -235,12 +245,24 @@ def handle_client(client_socket):
             print(f"Error handling client: {e}")
             break  # Break out of the loop if there's an unexpected error
 
+    # Remove the client from the list of connected clients
+    try:
+        connected_clients.remove(current_client)
+    except ValueError:
+        pass  # Ignore if the client is not in the list
 
+    try:
+        current_client.close()  # Close the client socket
+    except:
+        pass
 
-    current_client.close()  # Close the client socket
+    # Check if there are still connected clients
+    if not connected_clients:
+        send_thread_running = False
 
     # Reset the current client to None when the client disconnects
     current_client = None
+    send_thread.join()
 
 def get_TLE(sat_id):
 

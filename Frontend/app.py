@@ -60,6 +60,7 @@ def check_status():
     if entry is None:
         helpers.open_tunnel(gs_id=gs_id)
         session['redirect_to_autotrack'] = True
+        print("test her")
         return jsonify({'conditionMet': True})
 
     return jsonify({

@@ -121,7 +121,7 @@ class helper:
             elif value == "STOP":
                 operation.append(value)
                 self.remove_task_from_db()
-
+            
             else:
                 operation.append(value)
         for item in operation:
