@@ -170,6 +170,7 @@ class helper:
 
 
     def remove_task_from_db(self):
+        print("test")
         query = "UPDATE GS_Table SET Entry = NULL, Sat_ID = NULL, Method = NULL, Pass_Start = NULL, Pass_End = NULL WHERE GS_ID = 1"
         self.db_cur.execute(query)
         self.database.commit()
