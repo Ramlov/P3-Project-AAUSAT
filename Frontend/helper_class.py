@@ -59,13 +59,13 @@ class helper:
             result = self.db_cur.fetchall()
         except Exception as e:
             print(f"Error fetching results: {e}")
-            return None
+            return None, e
 
         if not result:
             print("No results found in queue_table.")
-            return None
+            return None, None
 
-        your_position_in_queue = None
+        your_position_in_queue = None, None
 
         for row in result:
             if row[0] == entry:
