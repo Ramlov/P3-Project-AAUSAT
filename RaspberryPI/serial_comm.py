@@ -17,8 +17,12 @@ GPIO.setup(control_pin, GPIO.OUT)
 
 host = '172.26.12.59'
 port = 13446
-version = "Raspberry pi version: 1.2.7"
+version = "Raspberry pi version: 1.1.7"
 
+firstresponders = "write START when ready to connect to ESP32: "
+
+# Define the serial port and baud rate
+serial_port = '/dev/ttyUSB0'
 
 baud_rate = 115200
 
@@ -56,6 +60,7 @@ while True:
         print(f"Failed to connect to {serial_port}. Retrying in 5 seconds...")
         sleep(3)
 
+connected_clients = []
 send_thread_running = False
 
 def read_and_print_output(client_socket):
@@ -68,10 +73,22 @@ def read_and_print_output(client_socket):
             #print(response)
             if response:
                 try:
-                    print(response)
-                    process_response(response)
+                    insert_query = "INSERT INTO Dump_Table (Dump, GS_ID) VALUES (%s, %s)"
+                    #print(gs_id)
+                    db_cursor.execute(insert_query, (response, gs_id,))
+                    db_connection.commit()
                 except:
                     pass
+                if raw:
+                    print(response)
+                    #client_socket.send(response.encode())
+                else:
+                    try:
+                        print(response)
+                        process_response(response)
+                        #client_socket.send(process_response(response).encode())
+                    except:
+                        pass
     else:
         while True:
             if send_thread_running == False:
@@ -79,7 +96,7 @@ def read_and_print_output(client_socket):
             try:
                 response = ser.readline().decode().strip()
             except:
-                print("Error respon")
+                print("Error respond")
                 response = ""
             if response:
                 try:
@@ -89,6 +106,7 @@ def read_and_print_output(client_socket):
                     db_connection.commit()
                 except:
                     pass
+                #print(connected_clients)
                 #print(client_socket)
                 print(response)
                 if raw:
@@ -110,7 +128,7 @@ def process_response(response):
         elif status == "WAIT":
             return(f"{command} is in progress. Waiting for completion...")
         elif status == "TLE":
-            _ = update_time_ntp()
+            status = update_time_ntp()
             tle = get_TLE(parts[2])
             json_str = json.dumps(tle)
             encoded_data = (json_str + '\n').encode()
@@ -167,7 +185,7 @@ def send_user_commands():
         elif command == "STOP":
             print("Received STOP command. Setting pin LOW.")
             GPIO.output(control_pin, GPIO.LOW)
-        elif command in list_of_commands:
+        elif command in list_of_commands or 1 == 1:
             if command == "VE":
                 ser.write(command.encode() + b'\n')
                 print(version)
@@ -176,15 +194,20 @@ def send_user_commands():
         else:
             print("Commands do not exist!")
 
+current_client = None  # Variable to store the current connected client
 
 def handle_client(client_socket):
-    current_client = None
+    global current_client
     global send_thread_running
-    GPIO.output(control_pin, GPIO.LOW)
+    send_thread_running = False
     sleep(1)
 
     # Set the current client to the new client
     current_client = client_socket
+
+    # Add the client to the list of connected clients
+    connected_clients.append(client_socket)
+    print(connected_clients)
     # Restart the send_thread if it's not running
     send_thread_running = True
     send_thread = threading.Thread(target=read_and_print_output, args=(client_socket,))
@@ -195,19 +218,26 @@ def handle_client(client_socket):
             data = current_client.recv(1024)  # Use current_client instead of client_socket
             if not data:
                 print("Client disconnected.")
+                GPIO.output(control_pin, GPIO.LOW)
                 break  # Break out of the loop if the client disconnects
             if data.decode() == "START":
                 print("STARTING")
                 GPIO.output(control_pin, GPIO.HIGH)
             elif data.decode() == "STOP":
+                print("sleeping for stop")
+                sleep(10)
                 print("STOPPGINASIDNASOIDJNAS")
                 GPIO.output(control_pin, GPIO.LOW)
             else:
                 print(data)
                 ser.write(data + b'\n')
                 if data.decode() == "VE":
-                    client.send(version.encode())
+                    # Send version to all connected clients
+                    for client in connected_clients:
+                        client.send(version.encode())
         except ConnectionResetError:
+            GPIO.output(control_pin, GPIO.LOW)
+            sleep(2)
             print("Client connection reset by peer.")
             send_thread_running = False
             break  # Break out of the loop if there's a connection reset
@@ -215,12 +245,24 @@ def handle_client(client_socket):
             print(f"Error handling client: {e}")
             break  # Break out of the loop if there's an unexpected error
 
+    # Remove the client from the list of connected clients
+    try:
+        connected_clients.remove(current_client)
+    except ValueError:
+        pass  # Ignore if the client is not in the list
 
+    try:
+        current_client.close()  # Close the client socket
+    except:
+        pass
 
-    current_client.close()  # Close the client socket
+    # Check if there are still connected clients
+    if not connected_clients:
+        send_thread_running = False
 
     # Reset the current client to None when the client disconnects
     current_client = None
+    send_thread.join()
 
 def get_TLE(sat_id):
 
@@ -235,6 +277,10 @@ def get_TLE(sat_id):
         'line 2': result.get("line2")
     }
     return TLE_dict
+
+
+
+
 
 
 
