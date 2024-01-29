@@ -139,35 +139,57 @@ class helper:
             AT_command = "AT" + str(satellite_id)
             print(AT_command, "Debug")
             self.sock.send(AT_command.encode(self.FORMAT))
-    
+
+    def is_connection_valid(self):
+        try:
+            self.database.ping(reconnect=True)
+            return True
+        except pymysql.Error:
+            return False    
+
     def check_notrack(self, satellite_id, gs_id):
-        # Initialize Variable
         lock_on = False
-        
+
         while True:
-            sleep(2)
-            query = f"SELECT Dump FROM Dump_Table WHERE GS_ID = {gs_id} ORDER BY Log_ID DESC"
-            self.db_cur.execute(query)
-            response = self.db_cur.fetchone()
-            self.database.commit()
+            try:
+                if not self.is_connection_valid():
+                    self.database = self.create_new_connection()
 
-            if response:
-                if response[0] == "OK - LOCK_ON: True": 
-                    print(f"[LOCK ON]: Currently tracking {satellite_id}")
-                    lock_on = True
+                with self.database.cursor() as cursor:
+                    query = f"SELECT Dump FROM Dump_Table WHERE GS_ID = {gs_id} ORDER BY Log_ID DESC"
+                    cursor.execute(query)
+                    response = cursor.fetchone()
 
-                elif response[0] == "SATELLITE-BELOW-HORIZON" and lock_on == True:
-                    print("Autotrack done")
-                    self.remove_task_from_db()
-                    return False
+                if response:
+                    if response[0] == "OK - LOCK_ON: True":
+                        print(f"[LOCK ON]: Currently tracking {satellite_id}")
+                        lock_on = True
 
-                elif response[0] == "OK - LOCK_ON: False":
-                    print(f"[LOCK OFF]: Not tracking {satellite_id}")
-                    lock_on = True
+                    elif response[0] == "SATELLITE-BELOW-HORIZON" and lock_on == True:
+                        print("Autotrack done")
+                        self.remove_task_from_db()
+                        return False
 
-                else:
-                    time.sleep(1)
-                    print("Waiting for status response from Esp32")
+                    elif response[0] == "OK - LOCK_ON: False":
+                        print(f"[LOCK OFF]: Not tracking {satellite_id}")
+                        lock_on = False  # This should likely be set to False here
+
+                    elif response[0] == "SHUTDOWN":
+                        print(f"Autotrack canceled")
+                        return False
+
+                    else:
+                        time.sleep(1)
+                        print("Waiting for status response from Esp32")
+            except pymysql.err.OperationalError as e:
+                print(f"Database operational error: {e}")
+                # Handle operational error such as a lost connection
+                self.database = self.create_new_connection()
+
+            except Exception as e:
+                print(f"Unexpected error: {e}")
+            time.sleep(2)
+
 
 
 

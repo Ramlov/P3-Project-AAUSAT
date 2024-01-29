@@ -7,7 +7,7 @@ import threading
 import pymysql
 
 helpers = helper()
-bypass_backend = True
+bypass_backend = False
 app = Flask(__name__)
 satellite_id = 0
 gs_id = 0
@@ -95,13 +95,16 @@ def manual():
 @app.route('/autotrack', methods=['GET', 'POST'])
 def autotrack():
     sat_id = session.get('sat_id')
-    if not bypass_backend:
-        pass
-        try:
-            checklock_thread = threading.Thread(target=helpers.check_notrack, args=(sat_id, gs_id,))
-            checklock_thread.start()
-        except:
-            pass
+    gs_id = 1
+    # if not bypass_backend:
+    #     pass
+    #     try:
+    #         print("Starting check thread")
+    #         checklock_thread = threading.Thread(target=helpers.check_notrack, args=(sat_id, gs_id,))
+    #         checklock_thread.start()
+    #     except:
+    #         print("debug")
+    #         pass
     helpers.send_auto_command(sat_id)
     start, stop = helpers.get_timestamps_for_satID(sat_id)
     return render_template('autotrack/autotrack.html', satellite_name=sat_id,satellite_start=start,satellite_stop=stop)
