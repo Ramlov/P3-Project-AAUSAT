@@ -99,6 +99,11 @@ class helper:
             port = 13446
             self.sock.connect((gs_address, port))
             print(self.sock)
+            new_dict = {"process": "STOP"}
+            self.send_commands(command=new_dict)
+            sleep(2)
+            new_dict = {"process": "START"}
+            self.send_commands(command=new_dict)
 
         except ConnectionRefusedError:
             print(f"Connection to Ground station address: {gs_address} | Port: {port} -> refused")
