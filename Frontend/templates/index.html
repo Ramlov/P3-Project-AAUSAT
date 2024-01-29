@@ -129,16 +129,13 @@
                 <div class="loading-spinner"></div>
                 <p>Waiting on queue...</p>
                 <div>
-                    <p id="currentTask">Current task at selected GS:</p>
                     <p id="placeinqueue">Your task ID:</p>
                     <p id="tasksInFront">Your position in the queue: </p>
                 </div>
                 <button id="stop-queue" type="button" onclick="stopQueue()">Stop Queue</button>
 
             </div>
-
             <button id="start-tracking" type="button" onclick="startQueueCheck()">Start Tracking</button>
-
         </form>
      
     </div>
@@ -154,7 +151,7 @@ function startQueueCheck() {
     var trackingMode = document.getElementById('tracking-mode').value;
     var priority;
     var satelliteId;
-
+    
     if (trackingMode === 'AUTOINPUT') {
         satelliteId = document.getElementById('satellite-id_input').value;
         priority = document.getElementById('priority-autoinput').value;
@@ -175,6 +172,8 @@ function startQueueCheck() {
         priority: priority
     };
 
+
+    document.getElementById('start-tracking').style.display = 'none';
     $.ajax({
         url: '/start-check',
         type: 'POST',
@@ -195,7 +194,6 @@ function pollStatus(entry) {
         type: 'GET',
         data: { entry: entry },
         success: function(response) {
-            document.getElementById('currentTask').innerText = 'Current task being executed: ' + response.current_task_at_gs;
             document.getElementById('placeinqueue').innerText = 'Your task ID: ' + response.place_in_queue;
             document.getElementById('tasksInFront').innerText = 'Your position in the queue: ' + response.tasks_in_front;
 
@@ -215,6 +213,7 @@ function pollStatus(entry) {
 
         function showLoading() {
             document.getElementById("loading-container").style.display = "block";
+            
         }
         function stopQueue() {
             $.ajax({

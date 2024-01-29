@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 # Import Helper Functions
 from helper_functions import db_setup, execute_query, drop_tables, queue_controller, gs_sel_algorithm
-clear_db = False
+clear_db = True
 def main():
     # Declare Variables
     printed = False
