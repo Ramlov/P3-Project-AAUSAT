@@ -7,7 +7,7 @@ import threading
 import pymysql
 
 helpers = helper()
-bypass_backend = False
+bypass_backend = True
 app = Flask(__name__)
 satellite_id = 0
 gs_id = 0
@@ -55,17 +55,15 @@ def start_check():
 @app.route('/check-status', methods=['GET'])
 def check_status():
     entry = request.args.get('entry', type=int)
-    gs_id, current_task_at_gs, tasks_in_front = helpers.check_available(entry)
+    entry, tasks_in_front = helpers.check_available(entry)
 
-    if gs_id is not None:
-
+    if entry is None:
         helpers.open_tunnel(gs_id=gs_id)
         session['redirect_to_autotrack'] = True
         return jsonify({'conditionMet': True})
 
     return jsonify({
         'conditionMet': False,
-        'current_task_at_gs': current_task_at_gs,
         'place_in_queue': entry,
         'tasks_in_front': tasks_in_front
     })
@@ -83,9 +81,9 @@ def mathinew():
 
 @app.route('/manual', methods=['GET', 'POST'])
 def manual():
+    sleep(5)
     new_dict = {"process": "START"}
     helpers.send_commands(command=new_dict)
-    sleep(3)
     try:
         if request.method == 'POST':
             data = request.get_json()
@@ -106,9 +104,9 @@ def autotrack():
             checklock_thread.start()
         except:
             pass
+    sleep(5)
     new_dict = {"process": "START"}
     helpers.send_commands(command=new_dict)
-    sleep(3)
     helpers.send_auto_command(sat_id)
     start, stop = helpers.get_timestamps_for_satID(sat_id)
     return render_template('autotrack/autotrack.html', satellite_name=sat_id,satellite_start=start,satellite_stop=stop)

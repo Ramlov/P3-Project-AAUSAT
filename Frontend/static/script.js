@@ -5,6 +5,7 @@ const manualControls = document.getElementById("manual-controls");
 
 const autoinputControls = document.getElementById("autoinput-controls");
 
+
 trackingModeSelect.addEventListener("change", function () {
     const selectedMode = trackingModeSelect.value;
 

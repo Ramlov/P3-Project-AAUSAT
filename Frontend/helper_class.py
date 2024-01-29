@@ -49,42 +49,32 @@ class helper:
     def check_available(self, entry):
         if entry is None:
             print("Entry is None. Cannot proceed.")
-            return None, None, None
+            return "NoEntry", None
 
-        query = "SELECT GS_ID, Entry FROM GS_Table ORDER BY Entry ASC"
+        # Query to fetch data from queue_table
+        query = "SELECT Entry, Pos FROM Queue_Table ORDER BY Entry ASC"
         self.db_cur.execute(query)
-        
+
         try:
             result = self.db_cur.fetchall()
         except Exception as e:
             print(f"Error fetching results: {e}")
-            return None, None, None
+            return None, e
 
         if not result:
-            print("No results found in GS_Table.")
-            return None, None, None
+            print("No results found in queue_table.")
+            return None, None
 
-        current_task_at_selected_gs = None
-        tasks_in_front_of_you = None
+        your_position_in_queue = None, None
 
-        for gs in result:
-            if gs[1] is not None:
-                current_task_at_selected_gs = gs[1]
-                break
+        for row in result:
+            if row[0] == entry:
+                your_position_in_queue = row[1]
+                print("Entry found. Position in queue: ", your_position_in_queue)
+                return entry, your_position_in_queue
 
-        if current_task_at_selected_gs is not None:
-            tasks_in_front_of_you = max(0, entry - current_task_at_selected_gs)
-            print(f'Current task at selected GS: {current_task_at_selected_gs}')
-            print(f'Task(s) in front of you: {tasks_in_front_of_you}')
-        else:
-            print("No valid current task found in GS_Table.")
-
-        for gs in result:
-            if gs[1] == entry:
-                print("Open Tunnel")
-                return gs[0], current_task_at_selected_gs, tasks_in_front_of_you
-
-        return None, current_task_at_selected_gs, tasks_in_front_of_you
+        print("Your entry is not in the queue.")
+        return None, None
 
 
         
