@@ -17,7 +17,7 @@ def watch_manual(database: pymysql.Connection, best_match):
     valid_log = None
     GS_ID = best_match[0]
     keywords_to_ignore = ['PP_OK', 'azimuth', 'elevation', 'PP_WAIT']
-    watchdog_time = 20 # The allowing the User to do stuff without being kicked in seconds
+    watchdog_time = 60 # The allowing the User to do stuff without being kicked in seconds
 
     task_id = execute_query(database=database, sql=f"SELECT Entry FROM GS_Table WHERE GS_ID = {GS_ID}")
 
@@ -213,15 +213,25 @@ def queue_controller(database: pymysql.Connection):
 
     # Declare Variables
     sort_queue = False
+    check_range = 2 # Becomes 1 if it is determined beforehand that the queue needs to be sorted (In case Pos 1 has been moved to gs_table)
 
     # Fetch Necessary Columns From Queue Table
     results = execute_query(database=database, sql="SELECT Entry, Prio, Pos, Method FROM Queue_Table ORDER BY Prio ASC, Entry ASC;")
 
     if results: # No reason to sort or work on empty queue
 
+        # Check if already sorted queue has Pos 1 removed from the queue (If it is assigned to a GS)
+        pos_1 = execute_query(database=database, sql="SELECT Entry FROM Queue_Table WHERE Pos = 1")
+        print(f"Pos_1 = {pos_1}")
+
+        if not pos_1:
+            print("Pos 1 Task has been removed from Queue, re-sort table.")
+            sort_queue = True
+            check_range = 1 # We only need to reassign Pos values
+
         # Check for new entry in the queue table and sort the queue based on Entry and Priority
         i = 0
-        for z in range(2): # Check the queue twice: 1. Check if we have new entry(ies), 2. Sort the order if that is the case.
+        for z in range(check_range): # Check the queue twice: 1. Check if we have new entry(ies), 2. Sort the order if that is the case.
             if z == 1 and sort_queue == False: # If there are no new entries then no reason to reorder
                 break
 

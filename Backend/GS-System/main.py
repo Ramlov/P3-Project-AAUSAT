@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 # Import Helper Functions
 from helper_functions import db_setup, execute_query, drop_tables, queue_controller, gs_sel_algorithm
-clear_db = True
+
 def main():
     # Declare Variables
     printed = False
@@ -26,8 +26,8 @@ def main():
         password = PASSWORD,
         database = DB_NAME
     )
-    if clear_db:
-        drop_tables(database=database)
+
+    #drop_tables(database=database)
 
     # Connect if the Database is empty
     if not execute_query(database=database, sql="SHOW TABLES"):
