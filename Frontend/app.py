@@ -81,9 +81,6 @@ def mathinew():
 
 @app.route('/manual', methods=['GET', 'POST'])
 def manual():
-    sleep(5)
-    new_dict = {"process": "START"}
-    helpers.send_commands(command=new_dict)
     try:
         if request.method == 'POST':
             data = request.get_json()
@@ -104,9 +101,6 @@ def autotrack():
             checklock_thread.start()
         except:
             pass
-    sleep(5)
-    new_dict = {"process": "START"}
-    helpers.send_commands(command=new_dict)
     helpers.send_auto_command(sat_id)
     start, stop = helpers.get_timestamps_for_satID(sat_id)
     return render_template('autotrack/autotrack.html', satellite_name=sat_id,satellite_start=start,satellite_stop=stop)
