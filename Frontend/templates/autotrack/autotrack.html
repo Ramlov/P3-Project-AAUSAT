@@ -6,6 +6,8 @@
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles/style.css') }}" />
   <link rel="icon" href="{{ url_for('favicon') }}" type="image/x-icon" />
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
 
   <style>
       .video-container {
@@ -61,6 +63,9 @@
 .info-value {
   text-align: right;
 }
+#close-btn {
+   max-width: 400px;
+        }
   </style>
 </head>
 
@@ -96,6 +101,8 @@
         </tr>
       </table>
     </div>
+    <br>
+    <button id="close-btn" onclick="closeAction()">CLOSE CONNECTION</button>
     <div class="video-container">
       <video id="videoPlayer" controls autoplay></video>
   </div>
@@ -135,6 +142,23 @@
 
     // Fetch status immediately on page load
     fetchStatus();
+
+
+    function closeAction() {
+        $.ajax({
+            type: "POST",
+            url: "/manual",
+            contentType: "application/json;charset=UTF-8",
+            data: JSON.stringify({ close: "STOP1" }),
+            success: function(response) {
+                console.log("CLOSE action sent successfully to Flask backend");
+                window.location.href = "/";
+            },
+            error: function(error) {
+                console.error("Error sending CLOSE action to Flask backend:", error);
+            }
+        });
+    }
 
 </script>
 
