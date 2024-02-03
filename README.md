@@ -1,6 +1,12 @@
 
+For your case, to use CLI on Raspberry pi:
+ssh satlab@aausat-roof1.space.aau.dk
+Satlab123
 
+sudo python3 serial_comm.py MAN
 
+START
+help (To see commands)
 
 
 
