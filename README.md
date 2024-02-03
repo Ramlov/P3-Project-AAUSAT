@@ -46,12 +46,14 @@ Ensure you have Python 3.x installed on your system and the Arduino IDE for the 
    ```bash
    cd GS-System
    pip install -r requirements.txt
+   ```
 2. **ESP32 Programming**: To program the ESP32, use the Arduino IDE to upload the `GS_easycomm2_controller.ino` script located in the ESP32/GS_easycomm2_controller directory. This script is essential for the ESP32 module's operation and requires a serial connection to a Raspberry Pi to work correctly.
 
 3. **Frontend Setup**: The web interface is managed through the Frontend directory. To start the web service, run the `app.py` script. This requires Python to be installed on your system.
    ```bash
    cd Frontend
    python app.py
+   ```
 This will start the Flask-based web service, establishing a connection to the Raspberry Pi via serial communication. The connection is necessary for the web service to interact with the Ground Station System and requires that `serial_comm.py` is executed on the Raspberry Pi with the "TUN" argument to enable the tunneling feature for socket connections.
 
 ### Raspberry Pi Setup
@@ -64,10 +66,6 @@ The Raspberry Pi plays a critical role in the project, handling tasks from video
 Setup and execution instructions are provided within each script. Follow these guidelines to ensure proper operation of your project components.
 
 ### Running the Project
-To activate the Ground Station System, navigate to the GS-System directory and execute the following command:
-  ```bash
-  python main.py
-
 Ensure the ESP32 module is correctly configured and connected to the Raspberry Pi. This setup is crucial for the seamless operation of the ESP32 scripts and their communication with the ground station system.
 
 To start the web service and enable web-based control and monitoring, execute the `app.py` script within the Frontend directory:
@@ -75,7 +73,42 @@ To start the web service and enable web-based control and monitoring, execute th
 ```bash
 cd Frontend
 python app.py
+```
+Ensure the ESP32 module is correctly configured and connected to the Raspberry Pi. Proper setup is essential for the module's operation and its communication with the ground station system.
 
+To initiate the web service for system control and monitoring, run the `app.py` script located in the Frontend directory:
+
+```bash
+cd Frontend
+python app.py
+```
+This command launches the Flask application, providing a user-friendly web interface for system interaction. Through this interface, users can send commands, monitor system status, and receive updates in real-time. It's an essential component for facilitating easy access and control of the ground station system.
+
+## How to Contribute
+
+We welcome contributions from the community. Whether it's improving the codebase, adding new features, or fixing bugs, your contributions are valuable to us. Here's how you can contribute:
+
+1. **Fork the Repository:** Start by forking the project repository to your GitHub account.
+2. **Create a Feature Branch:** Create a branch in your forked repository for your contribution (`git checkout -b feature/YourFeatureName`).
+3. **Commit Your Changes:** Make your changes in your feature branch and commit them (`git commit -am 'Add some feature'`).
+4. **Push to the Branch:** Push your changes to your GitHub repository (`git push origin feature/YourFeatureName`).
+5. **Submit a Pull Request:** Go back to the original project repository and submit a pull request from your feature branch to the main branch.
+
+Before starting your contribution, please check the existing issues and pull requests to ensure that you're not duplicating work. For significant changes or new features, it's a good idea to open an issue first to discuss it with the project maintainers.
+
+## License
+
+The project is licensed under the MIT License. This license allows for free use, modification, and distribution of the project, ensuring it remains accessible and beneficial to the community. See the LICENSE file in the project repository for full license text.
+
+## Acknowledgments
+
+Our heartfelt thanks go out to all the contributors who have invested their time and effort into this project. Your contributions, big or small, play a crucial role in its success and continuous improvement.
+
+## Contact Information
+
+If you have any questions, feedback, or would like to contribute to the project, please don't hesitate to reach out. You can file an issue on GitHub for small queries or suggestions.
+
+We're looking forward to seeing how you will contribute to making this project even better!
 
 
 
