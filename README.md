@@ -98,11 +98,21 @@ Before starting your contribution, please check the existing issues and pull req
 
 ## License
 
-The project is licensed under the MIT License. This license allows for free use, modification, and distribution of the project, ensuring it remains accessible and beneficial to the community. See the LICENSE file in the project repository for full license text.
+"The Beer-ware License" (Revision 42):
+
+As long as you retain this notice, you can do whatever you want with this stuff. If we meet some day, and you think this stuff is worth it, you can buy us a beer in return.
+
+This project is released under the Beer-ware License, encouraging users to enjoy and share it freely, with the only expectation being a beer in return if you enjoy using our software and we happen to cross paths.
 
 ## Acknowledgments
 
-Our heartfelt thanks go out to all the contributors who have invested their time and effort into this project. Your contributions, big or small, play a crucial role in its success and continuous improvement.
+Our heartfelt thanks go out to all the contributors who have invested their time and effort into this project. Special acknowledgments to:
+
+- Our guidance counselor, for their invaluable advice and support throughout the development of this project.
+- The Satellite Group at Aalborg University (AAU) for their collaboration and shared insights, which have significantly contributed to the success and innovation of our project.
+
+Your contributions, big or small, play a crucial role in its success and continuous improvement.
+
 
 ## Contact Information
 
